@@ -6,7 +6,6 @@ CREATE TABLE IF NOT EXISTS `file` (
     `name` varchar(255) NOT NULL,
     `mime_type` varchar(50) NOT NULL DEFAULT 'application/octet-stream',
     `size` bigint NOT NULL,
-    `data` mediumblob DEFAULT NULL,
     `uid` int(11) NOT NULL,
     `gid` int(11) NOT NULL DEFAULT 0,
     `perms` int DEFAULT '190' ,
