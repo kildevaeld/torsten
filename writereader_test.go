@@ -17,7 +17,7 @@ func TestWriteReader(t *testing.T) {
 	go func() {
 		i := 10
 		for i > 0 {
-			fmt.Printf("write: %d\n", i)
+			//fmt.Printf("write: %d\n", i)
 			buf.Write([]byte(fmt.Sprintf("from write: %d", i)))
 			time.Sleep(40 * time.Millisecond)
 			i--
@@ -29,7 +29,7 @@ func TestWriteReader(t *testing.T) {
 
 		for {
 			b := make([]byte, 10)
-			i, e := buf.Read(b)
+			_, e := buf.Read(b)
 			if e != nil {
 				fmt.Printf("got EOF\n")
 
@@ -39,7 +39,7 @@ func TestWriteReader(t *testing.T) {
 				continue
 			}*/
 			//time.Sleep(70 * time.Millisecond)
-			fmt.Printf("size: %d read: '%s'\n", i, b)
+			//fmt.Printf("size: %d read: '%s'\n", i, b)
 			//buf.Write([]bye(fmt.Sprintf("from write: %d", i)))
 
 		}

@@ -103,3 +103,8 @@ func NewWriteReader() io.ReadWriteCloser {
 	c := sync.NewCond(&sync.Mutex{})
 	return &writereader{cond: c}
 }
+
+func newWriteReader() *writereader {
+	c := sync.NewCond(&sync.Mutex{})
+	return &writereader{cond: c}
+}
