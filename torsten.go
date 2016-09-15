@@ -1,6 +1,9 @@
 package torsten
 
 import (
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"time"
@@ -8,7 +11,32 @@ import (
 	"github.com/satori/go.uuid"
 )
 
+type MetaMap map[string]interface{}
+
+// Scan implements the Scanner interface.
+func (nt *MetaMap) Scan(value interface{}) error {
+	var err error
+	switch t := value.(type) {
+	case string:
+		err = json.Unmarshal([]byte(t), nt)
+	case []byte:
+		err = json.Unmarshal(t, nt)
+	}
+	return err
+}
+
+// Value implements the driver Valuer interface.
+func (nt MetaMap) Value() (driver.Value, error) {
+	b, e := json.Marshal(nt)
+	if e != nil {
+		return nil, e
+	}
+	return string(b), nil
+}
+
 type Hook int
+
+var ErrNotFound = errors.New("Not Found")
 
 const (
 	PreCreate Hook = iota + 1
@@ -18,7 +46,7 @@ const (
 )
 
 type HookFunc func(Hook, *FileInfo) error
-
+type CreateHookFunc func(*FileInfo, io.WriteCloser) (io.WriteCloser, error)
 type FileStatus int
 
 const (
@@ -29,18 +57,21 @@ const (
 )
 
 type FileInfo struct {
-	Id     uuid.UUID
-	Name   string
-	Size   int64
-	Mode   os.FileMode
-	Gid    int
-	Uid    int
-	Mime   string
-	Status FileStatus
-	Sha1   []byte
-	Meta   map[string]interface{}
-	Ctime  time.Time
-	Mtime  time.Time
+	Id     uuid.UUID   `json:"id,omitempty"`
+	Name   string      `json:"name"`
+	Size   int64       `json:"size,omitempty"`
+	Mode   os.FileMode `json:"mode,omitempty"`
+	Gid    uuid.UUID   `json:"gid,omitempty"`
+	Uid    uuid.UUID   `json:"uid,omitempty"`
+	Mime   string      `json:"mime,omitempty"`
+	Status FileStatus  `json:"status,omitempty"`
+	Sha1   []byte      `json:"sha1,omitempty"`
+	Meta   MetaMap     `json:"meta,omitempty"`
+	Ctime  time.Time   `json:"ctime,omitempty"`
+	Mtime  time.Time   `json:"mtime,omitempty"`
+	IsDir  bool        `json:"is_dir,omitempty"`
+	//Path   string      `json:"path"`
+	Hidden bool `json:"hidden"`
 }
 
 type FileNode struct {
@@ -52,11 +83,29 @@ type FileNode struct {
 type CreateOptions struct {
 	Overwrite bool
 	Mode      os.FileMode
-	Gid       int
-	Uid       int
+	Gid       uuid.UUID
+	Uid       uuid.UUID
 	Mime      string
 	Size      int64
 	Meta      map[string]interface{}
+}
+
+type GetOptions struct {
+	Gid uuid.UUID
+	Uid uuid.UUID
+}
+
+type RemoveOptions struct {
+	Gid uuid.UUID
+	Uid uuid.UUID
+}
+
+type ListOptions struct {
+	Limit     int64
+	Offset    int64
+	Recursive bool
+	Gid       uuid.UUID
+	Uid       uuid.UUID
 }
 
 type DataAdator interface {
@@ -66,12 +115,14 @@ type DataAdator interface {
 }
 
 type MetaAdaptor interface {
-	Prepare(path string) error
-	Finalize(path string, info *FileInfo) error
+	Insert(path string, info *FileInfo) error
+	//Prepare(path string) error
+	//Finalize(path string, info *FileInfo) error
 	Update(path string, info *FileInfo) error
-	Get(path string) (FileInfo, error)
-	List(path string, fn func(info *FileNode) error) error
+	Get(path string, options GetOptions) (*FileInfo, error)
+	List(prefix string, options ListOptions, fn func(path string, node *FileInfo) error) error
 	Remove(path string) error
+	Clean(before time.Time) (int64, error)
 }
 
 type Torsten interface {
@@ -80,12 +131,13 @@ type Torsten interface {
 	Move(from, to string) error
 	MkDir(path string) error
 
-	Remove(path string) error
-	RemoveAll(path string) error
+	Remove(path string, o RemoveOptions) error
+	RemoveAll(path string, o RemoveOptions) error
 
-	Open(path string) (io.ReadCloser, error)
-	Stat(path string) (FileInfo, error)
-	List(prefix string, fn func(node *FileNode) error) error
+	Open(path string, options GetOptions) (io.ReadCloser, error)
+	Stat(path string, options GetOptions) (*FileInfo, error)
+	List(prefix string, options ListOptions, fn func(path string, node *FileInfo) error) error
 
 	RegisterHook(hook Hook, fn HookFunc)
+	RegisterCreateHook(fn CreateHookFunc)
 }

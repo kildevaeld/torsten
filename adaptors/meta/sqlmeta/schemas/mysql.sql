@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS `file` (
     `perms` int DEFAULT '190' ,
     `ctime` datetime DEFAULT CURRENT_TIMESTAMP,
     `mtime` datetime ON UPDATE CURRENT_TIMESTAMP,
-    `meta` varchar(500) default '{}',
+    `meta` varchar(1000) default '{}',
+    `hidden` smallint(1) NOT NULL DEFAULT '0'
     `sha1` binary(20) DEFAULT NULL,
     INDEX file_name_index (`name`)
 );
@@ -27,7 +28,7 @@ CREATE TABLE IF NOT EXISTS `file_status` (
 CREATE TABLE IF NOT EXISTS `file_node` (
     `id` integer PRIMARY KEY auto_increment,
     `is_dir` tinyint(1) NOT NULL default '0',
-    `path` varchar(255) NOT NULL,
+    `path` varchar(4096) NOT NULL,
     `parent_id` int(11) DEFAULT NULL,
     `file_id` binary(16) DEFAULT NULL,
     FOREIGN KEY (`file_id`) REFERENCES `file`(`cid`) ON DELETE CASCADE,

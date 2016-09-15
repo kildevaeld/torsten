@@ -15,11 +15,16 @@
 package cmd
 
 import (
-	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/kildevaeld/torsten"
+	"github.com/kildevaeld/torsten/hooks"
 	"github.com/kildevaeld/torsten/http"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // httpCmd represents the http command
@@ -28,36 +33,62 @@ var httpCmd = &cobra.Command{
 	Short: "A brief description of your command",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		// TODO: Work your own magic here
-		tors, err := getTorsten()
-		printError(err)
-		_, err = getTorstenHttp(tors)
-		printError(err)
-
-		s, e := http.New(tors)
-		printError(e)
-
-		tors.RegisterHook(torsten.PreCreate, func(hook torsten.Hook, info *torsten.FileInfo) error {
-			fmt.Printf("PRE CREATE")
-			return nil
-		})
-
-		s.Listen(":3000")
-
+		printError(runHttp())
 	},
 }
 
 func init() {
 	RootCmd.AddCommand(httpCmd)
 
-	// Here you will define your flags and configuration settings.
+	httpCmd.Flags().StringP("address", "a", ":3000", "address")
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// httpCmd.PersistentFlags().String("foo", "", "A help for foo")
+	viper.BindPFlag("address", httpCmd.Flags().Lookup("address"))
 
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// httpCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+}
+
+func runHttp() error {
+	var (
+		tors torsten.Torsten
+		err  error
+		serv *http.HttpServer
+		log  *logrus.Logger
+	)
+
+	if tors, err = getTorsten(); err != nil {
+		return err
+	}
+
+	tors.RegisterCreateHook(hooks.ImageHook())
+
+	if log, err = getLogger(); err != nil {
+		return err
+	}
+	log.Level = logrus.DebugLevel
+
+	if serv, err = http.New(tors, log); err != nil {
+		return err
+	}
+
+	signal_chan := make(chan os.Signal, 1)
+	signal.Notify(signal_chan,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
+
+	exit_chan := make(chan error)
+
+	go func() {
+		exit_chan <- serv.Listen(viper.GetString("address"))
+	}()
+
+	go func() {
+		signal := <-signal_chan
+		log.Printf("Signal %s. Existing...", signal)
+
+		exit_chan <- serv.Close()
+	}()
+
+	return <-exit_chan
 
 }

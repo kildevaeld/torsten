@@ -8,17 +8,19 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"time"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/Sirupsen/logrus"
 	"github.com/jmoiron/sqlx"
 	"github.com/kildevaeld/torsten"
+	uuid "github.com/satori/go.uuid"
 )
 
 var (
-	FileNodeTable   = "file_node"
-	FileTable       = "file"
-	FileStatusTable = "file_status"
+	FileNodeTable = "file_node"
+	FileTable     = "file_info"
+	//FileStatusTable = "file_status"
 )
 
 type Options struct {
@@ -30,6 +32,13 @@ type Options struct {
 type sqlmeta struct {
 	db  *sqlx.DB
 	log *logrus.Logger
+}
+
+func notFoundOr(err error) error {
+	if err == sql.ErrNoRows {
+		return torsten.ErrNotFound
+	}
+	return err
 }
 
 func (self *sqlmeta) init() error {
@@ -48,7 +57,7 @@ func (self *sqlmeta) init() error {
 	return nil
 }
 
-func (self *sqlmeta) Finalize(path string, info *torsten.FileInfo) error {
+func (self *sqlmeta) Insert(path string, info *torsten.FileInfo) error {
 	var (
 		err error
 		tx  *sqlx.Tx
@@ -58,72 +67,48 @@ func (self *sqlmeta) Finalize(path string, info *torsten.FileInfo) error {
 		return err
 	}
 
-	if err = self.finalizeIn(path, info, tx); err != nil {
+	if err = self.insertIn(path, info, tx); err != nil {
 		tx.Rollback()
-		return err
+		return notFoundOr(err)
 	}
 
 	return tx.Commit()
-
 }
 
-func (self *sqlmeta) finalizeIn(path string, info *torsten.FileInfo, tx *sqlx.Tx) error {
+func (self *sqlmeta) insertIn(path string, info *torsten.FileInfo, tx *sqlx.Tx) error {
 	var (
 		sqli string
 		args []interface{}
 		err  error
 
-		parent *Node
+		parent uuid.UUID
 	)
 
 	log := self.log.WithField("path", path)
 
 	log.Debugf("finalizing")
 
-	if sqli, args, err = sq.Select("path").From(FileStatusTable).Where(sq.Eq{"path": path}).ToSql(); err != nil {
-		return err
-	}
-
-	var oPath string
-	if err = tx.Get(&oPath, sqli, args...); err != nil {
-		return err
-	}
-
-	if sqli, args, err = sq.Delete(FileStatusTable).Where(sq.Eq{
-		"path": path,
-	}).ToSql(); err != nil {
-		return err
-	}
-	log.Debugf("removing status %s", sqli)
-	if _, err := tx.Exec(sqli, args...); err != nil {
-		log.Errorf("removing status %s", err)
-		return err
-	}
-
-	if parent, err = self.getOrCreateParentIn(path, tx); err != nil {
+	if parent, err = self.getOrCreateParentIn(path, torsten.CreateOptions{
+		Uid: info.Uid,
+		Gid: info.Gid,
+	}, tx); err != nil {
 		log.Debugf("error %s", err)
+		tx.Rollback()
 		return err
 	}
 
 	sqli, args, err = sq.Insert(FileTable).
-		Columns("name", "size", "mime_type", "uid", "gid", "sha1", "cid", "meta").
-		Values(info.Name, info.Size, info.Mime, info.Uid, info.Gid, info.Sha1, info.Id.Bytes(), MetaMap(info.Meta)).ToSql()
+		Columns("name", "size", "mime_type", "uid", "gid", "sha1", "id", "meta", "node_id").
+		Values(info.Name, info.Size, info.Mime, NewInfoID(info.Uid), NewInfoID(info.Gid), info.Sha1, NewInfoID(info.Id),
+			info.Meta, NewInfoID(parent)).ToSql()
 
 	if err != nil {
-		return err
+		tx.Rollback()
+		panic(err)
+
 	}
 
-	log.Debugf("inserting %s", sqli)
-	if _, err = tx.Exec(sqli, args...); err != nil {
-		return err
-	}
-
-	sqli, args, err = sq.Insert(FileNodeTable).Columns("parent_id", "path", "is_dir", "file_id").
-		Values(parent.Id, path, false, info.Id.Bytes()).ToSql()
-	if err != nil {
-		return err
-	}
-
+	log.Debugf("inserting %s - %v", sqli, args)
 	if _, err = tx.Exec(sqli, args...); err != nil {
 		return err
 	}
@@ -131,177 +116,267 @@ func (self *sqlmeta) finalizeIn(path string, info *torsten.FileInfo, tx *sqlx.Tx
 	return nil
 }
 
-func (self *sqlmeta) getParentIn(path string, tx *sqlx.Tx) (*Node, error) {
-	dir := filepath.Dir(path)
-
-	sqli, args, err := sq.Select("*").From(FileNodeTable).Where(sq.Eq{"path": dir}).ToSql()
-	if err != nil {
-		return nil, err
+func normalizeDir(dir string) string {
+	if dir == "" {
+		return "/"
+	} else if dir != "/" && dir[len(dir)-1] != '/' {
+		dir += "/"
 	}
-
-	var parent Node
-	if err = self.db.Get(&parent, sqli, args...); err != nil {
-		return nil, err
-	}
-
-	return &parent, nil
+	return dir
 }
 
-func (self *sqlmeta) getOrCreateParentIn(path string, tx *sqlx.Tx) (*Node, error) {
+func (self *sqlmeta) getParentIn(path string, o torsten.CreateOptions, tx *sqlx.Tx) (uuid.UUID, error) {
+	dir := filepath.Dir(path)
+
+	dir = normalizeDir(dir)
+
+	sqli, args, err := sq.Select("id").From(FileNodeTable).Where(sq.Eq{"path": dir}).ToSql()
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	var parent InfoID
+	if err = self.db.Get(&parent, sqli, args...); err != nil {
+		return uuid.Nil, err
+	}
+
+	return parent.Id, nil
+}
+
+func (self *sqlmeta) getOrCreateParentIn(path string, o torsten.CreateOptions, tx *sqlx.Tx) (uuid.UUID, error) {
 	var (
-		node *Node
-		err  error
-		sqli string
-		args []interface{}
+		nodeId uuid.UUID
+		err    error
+		sqli   string
+		args   []interface{}
 	)
 	log := self.log.WithField("path", path)
 
 	log.Debugf("finding parent for: %s", path)
-	if node, err = self.getParentIn(path, tx); err != nil {
+	if nodeId, err = self.getParentIn(path, o, tx); err != nil {
 		if err != sql.ErrNoRows {
-			return nil, err
+			return uuid.Nil, err
 		}
 
 		dir := filepath.Dir(path)
+		dir = normalizeDir(dir)
 
-		if dir == "" {
-			dir = "/"
-		}
+		/*node = &Node{
+			Path: dir,
+		}*/
+		nodeId = uuid.NewV4()
+		log.Debugf("creating parent for: %s: %s", path, nodeId)
 
-		node = &Node{
-			Path:  dir,
-			IsDir: true,
-		}
-		log.Debugf("creating parent for: %s", path)
-		values := []interface{}{dir, true}
-		builder := sq.Insert(FileNodeTable).Columns("path", "is_dir")
+		values := []interface{}{dir, NewInfoID(o.Uid), NewInfoID(o.Gid), NewInfoID(nodeId)}
+		builder := sq.Insert(FileNodeTable).Columns("path", "uid", "gid", "id")
 
 		if dir != "/" {
-			parent, err := self.getOrCreateParentIn(dir, tx)
+			parent, err := self.getOrCreateParentIn(dir[:len(dir)-1], o, tx)
 			if err != nil {
-				return nil, err
+				return uuid.Nil, err
 			}
+
 			builder = builder.Columns("parent_id")
-			values = append(values, parent.Id)
-			node.ParentId.Int64 = parent.Id
+			values = append(values, NewInfoID(parent))
+			//node.ParentId.Int64 = parent
 		}
 
 		sqli, args, err = builder.Values(values...).ToSql()
 
 		if err != nil {
-			return nil, err
+			return uuid.Nil, err
 		}
 
-		result, rerr := tx.Exec(sqli, args...)
+		_, rerr := tx.Exec(sqli, args...)
 		if rerr != nil {
-			return nil, rerr
+			return uuid.Nil, rerr
 		}
 
-		id, ierr := result.LastInsertId()
-		if ierr != nil {
-			return nil, ierr
-		}
-
-		node.Id = id
+		/*node, err = result.LastInsertId()
+		if err != nil {
+			return uuid.Nil, err
+		}*/
 
 	}
 
-	return node, nil
-}
-
-func (self *sqlmeta) Prepare(path string) error {
-	var (
-		tx  *sqlx.Tx
-		err error
-	)
-
-	if tx, err = self.db.Beginx(); err != nil {
-		return err
-	}
-
-	if err = self.prepareIn(path, tx); err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return tx.Commit()
-}
-
-func (self *sqlmeta) prepareIn(path string, tx *sqlx.Tx) error {
-	var (
-		sqli string
-		args []interface{}
-		err  error
-	)
-	logrus.WithField("path", path).Debugf("preparing")
-	sqli, args, err = sq.Select("path").From(FileStatusTable).Where(sq.Eq{"path": path}).ToSql()
-	if err != nil {
-		return err
-	}
-
-	var oldPath string
-
-	if err = tx.Get(&oldPath, sqli, args...); err != nil && err != sql.ErrNoRows {
-		return err
-	}
-
-	if err == nil {
-		return errors.New("path already exists")
-	}
-
-	if sqli, args, err = sq.Select("id").From(FileNodeTable).Where(sq.Eq{"path": path}).ToSql(); err != nil {
-		return err
-	}
-	var id int64
-	if err = tx.Get(&id, sqli, args...); err == nil || err != sql.ErrNoRows {
-		if err == nil {
-			return errors.New("path2 already exists")
-		}
-		return err
-	}
-
-	sqli, args, err = sq.Insert(FileStatusTable).Columns("path", "status").Values(path, "creating").ToSql()
-	if err != nil {
-		return err
-	}
-
-	_, e := tx.Exec(sqli, args...)
-	return e
+	return nodeId, nil
 }
 
 func (self *sqlmeta) Update(path string, info *torsten.FileInfo) error {
 	return nil
 }
 
-func (self *sqlmeta) Get(path string) (torsten.FileInfo, error) {
+func (self *sqlmeta) Get(path string, o torsten.GetOptions) (*torsten.FileInfo, error) {
 
-	sqli, args, err := sq.Select(fmt.Sprintf("%s.*", FileTable)).From(FileTable).
-		Join(fmt.Sprintf("%s fn ON fn.file_id = %s.cid", FileNodeTable, FileTable)).
-		Where("fn.path = ? AND fn.is_dir = 0", path).ToSql()
+	builder := sq.Select(FileTable + ".*").From(FileTable).
+		LeftJoin(fmt.Sprintf("%s fn ON fn.id = %s.node_id", FileNodeTable, FileTable))
+
+	if self.db.DriverName() == "sqlite3" {
+		builder = builder.Where(sq.Expr("fn.path||file_info.name = ?", path))
+	} else {
+		builder = builder.Where(sq.Expr("CONCAT(fn.path, file_info.name) = ?", path))
+	}
+
+	sqli, args, err := builder.ToSql()
 
 	if err != nil {
-		return torsten.FileInfo{}, err
+		panic(err)
 	}
 
 	var (
 		file File
 	)
+
 	if err := self.db.Get(&file, sqli, args...); err != nil {
-		return torsten.FileInfo{}, err
+		if err != sql.ErrNoRows {
+			return nil, err
+		}
+		dir := normalizeDir(path)
+		builder = sq.Select("*").From(FileNodeTable).Where(sq.Eq{"path": dir})
+		if sqli, args, err = builder.ToSql(); err != nil {
+			panic(err)
+		}
+		var node Node
+		if err := self.db.Get(&node, sqli, args...); err != nil {
+			return nil, notFoundOr(err)
+		}
+
+		return node.ToInfo()
 	}
 
 	return file.ToInfo()
 }
 
-func (self *sqlmeta) List(prefix string, fn func(info *torsten.FileNode) error) error {
-	var fnt = FileNodeTable
+func (self *sqlmeta) List(prefix string, options torsten.ListOptions, fn func(path string, node *torsten.FileInfo) error) error {
 
+	builder := sq.Select(FileNodeTable + ".*").From(FileNodeTable).
+		LeftJoin(fmt.Sprintf("%s pn ON pn.id = %s.parent_id", FileNodeTable, FileNodeTable))
+
+	if options.Recursive {
+		builder = builder.Where("pn.path LIKE ?", prefix+"%")
+	} else {
+		builder = builder.Where("pn.path = ?", prefix)
+	}
+
+	sqli, args, err := builder.ToSql()
+	if err != nil {
+		panic(err)
+	}
+
+	rows, rerr := self.db.Queryx(sqli, args...)
+	if rerr == nil {
+		var node Node
+		for rows.Next() {
+			if err := rows.StructScan(&node); err != nil {
+				return notFoundOr(err)
+			}
+
+			file, _ := node.ToInfo()
+			if err = fn(filepath.Dir(node.Path), file); err != nil {
+				return err
+			}
+		}
+	}
+
+	builder = sq.Select(FileTable + ".*, fn.path").From(FileTable).
+		LeftJoin(fmt.Sprintf("%s fn ON fn.id = %s.node_id", FileNodeTable, FileTable))
+
+	if options.Recursive {
+		builder = builder.Where("fn.path LIKE ?", prefix+"%")
+	} else {
+		if prefix != "/" && prefix[len(prefix)-1] != '/' {
+			prefix += "/"
+		}
+
+		builder = builder.Where("fn.path = ?", prefix)
+	}
+
+	sqli, args, err = builder.ToSql()
+	if err != nil {
+		panic(err)
+	}
+
+	rows, rerr = self.db.Queryx(sqli, args...)
+	if rerr == nil {
+		var node File
+		for rows.Next() {
+			if err := rows.StructScan(&node); err != nil {
+				return notFoundOr(err)
+			}
+
+			file, _ := node.ToInfo()
+			if err = fn(node.Path, file); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+	/*var (
+		fnt  = FileNodeTable
+		sqli string
+		args []interface{}
+	)
+	cols := []string{"f.*"}
+	pcols := []string{"path", "ctime", "mtime", "id", "perms", "gid", "uid"}
+	for _, p := range pcols {
+		cols = append(cols, fmt.Sprintf("%s.%s as p_%s", fnt, p, p))
+	}
+	builder := sq.Select(cols...).From(fnt).
+		Join(fmt.Sprintf("%s f ON f.node_id = %s.id", FileTable, fnt))
+
+	if options.Recursive {
+		builder = builder.Where(fnt+".path LIKE ?", prefix+"%")
+	} else {
+		builder = builder.Where(fnt+".path = ?", prefix)
+	}
+
+	sqli, args, err := builder.ToSql()
+
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("%s - %v\n", sqli, args)
+	var node FileNode
+	var file torsten.FileInfo
+	//var fileNode torsten.FileNode
+
+	rows, rerr := self.db.Queryx(sqli, args...)
+	if rerr != nil {
+		return notFoundOr(rerr)
+	}
+
+	for rows.Next() {
+		if err := rows.StructScan(&node); err != nil {
+			return notFoundOr(err)
+		}
+		node.ToInfo(&file)
+		fmt.Printf("%s %s\n", file.Name, file.Path)
+		if err = fn(file.Path, &file); err != nil {
+			return err
+		}
+	}
+
+	return nil
+
+	/*var (
+		fnt  = FileNodeTable
+		sqli string
+		args []interface{}
+	)
 	cols := []string{fnt + ".path", fnt + ".is_dir", "f.*"}
 
-	sqli, args, err := sq.Select(cols...).From(fnt).
+	builder := sq.Select(cols...).From(fnt).
 		LeftJoin(fmt.Sprintf("%s pn ON pn.id = %s.parent_id", fnt, fnt)).
-		LeftJoin(fmt.Sprintf("%s f ON f.cid = %s.file_id", FileTable, FileNodeTable)).
-		Where("pn.path = ?", prefix).ToSql()
+		LeftJoin(fmt.Sprintf("%s f ON f.cid = %s.file_id", FileTable, FileNodeTable))
+
+	if options.Recursive {
+		builder = builder.Where("pn.path LIKE ?", prefix+"%")
+	} else {
+		builder = builder.Where("pn.path = ?", prefix)
+	}
+
+	sqli, args, err := builder.ToSql()
 
 	if err != nil {
 		return err
@@ -312,106 +387,146 @@ func (self *sqlmeta) List(prefix string, fn func(info *torsten.FileNode) error) 
 
 	rows, rerr := self.db.Queryx(sqli, args...)
 	if rerr != nil {
-		return rerr
+		return notFoundOr(rerr)
 	}
 
 	for rows.Next() {
 		if err := rows.StructScan(&node); err != nil {
-			return err
+			return notFoundOr(err)
 		}
-		fileNode, err := node.ToFileNode()
-		if err != nil {
-			return err
-		}
-		if err := fn(fileNode); err != nil {
-			return err
-		}
+
 	}
 
-	return nil
+	return nil*/
 }
 
 func (self *sqlmeta) Remove(path string) error {
-	var err error
-	var tx *sqlx.Tx
-
-	sqli, args, err := sq.Select("path").From(FileStatusTable).Where(sq.Eq{
-		"path": path,
-	}).ToSql()
-	if err != nil {
-		return err
-	}
-
-	if tx, err = self.db.Beginx(); err != nil {
-		return err
-	}
-	self.log.WithField("path", path).Debugf("remove")
-	var i string
-	if e := tx.QueryRowx(sqli, args...).Scan(&i); e == nil {
-		tx.Rollback()
-		return errors.New("path is being created")
-	}
-
-	err = self.removeIn(path, tx)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-	return tx.Commit()
-}
-
-func (self *sqlmeta) removeIn(path string, tx *sqlx.Tx) error {
-	var (
-		err error
+	return nil
+	/*var (
+		err   error
+		tx    *sqlx.Tx
+		ids   []int64
+		paths [][]byte
+		sqli  string
+		args  []interface{}
+		stat  *torsten.FileInfo
 	)
 
-	var fnt = FileNodeTable
-
-	cols := []string{fnt + ".path", fnt + ".is_dir", "f.*"}
-
-	sqli, args, err := sq.Select(cols...).From(fnt).
-		LeftJoin(fmt.Sprintf("%s f ON f.cid = %s.file_id", FileTable, FileNodeTable)).
-		Where(fmt.Sprintf("%s.path = ?", fnt), path).ToSql()
-
-	if err != nil {
+	if stat, err = self.Get(path); err != nil {
 		return err
 	}
 
-	var node Node
-	if err = tx.Get(&node, sqli, args...); err != nil {
-		fmt.Printf("Could not find %s", path)
-		return err
-	}
+	if stat.IsDir {
+		if tx, err = self.db.Beginx(); err != nil {
+			return err
+		}
 
-	if node.IsDir {
+		if ids, paths, err = self.removeNodesIn(path, tx); err != nil {
+			tx.Rollback()
+			return err
+		}
 
-		return self.List(node.Path, func(info *torsten.FileNode) error {
-			fmt.Printf("DELETE %s\n", path)
-			return self.removeIn(info.Path, tx)
-		})
+		sqli, args, err = sq.Delete(FileNodeTable).Where(sq.Eq{
+			"id": ids,
+		}).ToSql()
+		if err != nil {
+			tx.Rollback()
+			return err
+
+		}
+
+		if _, err := tx.Exec(sqli, args...); err != nil {
+			tx.Rollback()
+			return err
+		}
+
+		if sqli, args, err = sq.Delete(FileTable).Where(sq.Eq{
+			"cid": paths,
+		}).ToSql(); err != nil {
+			tx.Rollback()
+			return err
+		}
+
+		if _, err := tx.Exec(sqli, args...); err != nil {
+			tx.Rollback()
+			return err
+		}
+
 	} else {
-		if sqli, args, err = sq.Delete(FileTable).Where("cid = ?", node.Cid).ToSql(); err != nil {
-			return err
+		s, a, e := sq.Delete(FileTable).Where(sq.Eq{"cid": stat.Id}).ToSql()
+		if e != nil {
+			tx.Rollback()
+			return e
 		}
 
-		if _, err = tx.Exec(sqli, args...); err != nil {
-			return err
+		if _, e = tx.Exec(s, a...); e != nil {
+			tx.Rollback()
+			return e
 		}
-		if self.db.DriverName() == "sqlite3" {
-			if sqli, args, err = sq.Delete(FileNodeTable).Where(sq.Eq{
-				"path": path,
-			}).ToSql(); err != nil {
-				return err
-			}
-
-			if _, err := tx.Exec(sqli, args...); err != nil {
-				return err
-			}
-		}
-
 	}
 
-	return nil
+	return tx.Commit()*/
+
+}
+
+/*func (self *sqlmeta) removeNodesIn(path string, tx *sqlx.Tx) ([]int64, [][]byte, error) {
+	table := FileNodeTable
+	sqli, args, err := sq.Select(fmt.Sprintf("%s.id, %s.path, %s.is_dir, %s.file_id as cid", table, table, table, table)).From(table).
+		Join(fmt.Sprintf("%s pn ON pn.id = %s.parent_id", table, table)).
+		Where("pn.path = ?", path).ToSql()
+	if err != nil {
+		panic(err)
+	}
+
+	var paths [][]byte
+	var nodes []Node
+	if err := tx.Select(&nodes, sqli, args...); err != nil {
+		return nil, nil, err
+	}
+	var out []int64
+	for _, n := range nodes {
+		if n.IsDir {
+			sout, spaths, err := self.removeNodesIn(n.Path, tx)
+			if err != nil && err != sql.ErrNoRows {
+				return nil, nil, err
+			}
+			if sout != nil {
+				out = append(out, sout...)
+			}
+			paths = append(paths, spaths...)
+
+		} else {
+			paths = append(paths, n.Cid)
+		}
+		out = append(out, n.Id)
+	}
+	return out, paths, nil
+}*/
+
+func (self *sqlmeta) Clean(before time.Time) (int64, error) {
+	/*var (
+		sqli string
+		args []interface{}
+		err  error
+		ret  sql.Result
+		i    int64
+	)
+	if sqli, args, err = sq.Delete(FileStatusTable).Where(sq.Lt{
+		"ctime": before,
+	}).ToSql(); err != nil {
+		panic(err)
+	}
+
+	if ret, err = self.db.Exec(sqli, args...); err != nil {
+		return 0, err
+	}
+
+	if i, err = ret.RowsAffected(); err != nil {
+		return 0, err
+	} else {
+		return i, err
+	}*/
+	return 0, nil
 }
 
 func New(options Options) (torsten.MetaAdaptor, error) {

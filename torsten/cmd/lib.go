@@ -2,15 +2,17 @@ package cmd
 
 import (
 	"fmt"
+	"time"
 
 	"os"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/kildevaeld/filestore"
 	_ "github.com/kildevaeld/filestore/memory"
 	"github.com/kildevaeld/torsten"
 	"github.com/kildevaeld/torsten/adaptors/meta/sqlmeta"
-	"github.com/kildevaeld/torsten/http"
 	"github.com/spf13/viper"
+	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 )
 
 func printError(err error) {
@@ -37,7 +39,8 @@ func getTorsten() (torsten.Torsten, error) {
 	}
 
 	if fsOptions.Driver == "" {
-		fsOptions.Driver = "memory"
+		fsOptions.Driver = "filesystem"
+		fsOptions.DriverOptions = "./torsten_path"
 	}
 
 	//var metaOptions sqlmeta.Options
@@ -56,6 +59,7 @@ func getTorsten() (torsten.Torsten, error) {
 	if metaOptions.Options == "" {
 		metaOptions.Options = "./test.sqlite"
 	}
+	metaOptions.Debug = true
 
 	if meta, err = sqlmeta.New(metaOptions); err != nil {
 		return nil, err
@@ -63,10 +67,15 @@ func getTorsten() (torsten.Torsten, error) {
 
 	t := torsten.New(fs, meta)
 
-	return t, nil
+	i, e := meta.Clean(time.Now())
+	fmt.Printf("cleaning %d\n", i)
+	return t, e
 }
 
-func getTorstenHttp(t torsten.Torsten) (*http.HttpServer, error) {
+func getLogger() (*logrus.Logger, error) {
 
-	return nil, nil
+	log := logrus.New()
+	log.Formatter = new(prefixed.TextFormatter)
+
+	return log, nil
 }
