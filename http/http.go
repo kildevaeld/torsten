@@ -12,9 +12,11 @@ import (
 	"github.com/kildevaeld/dict"
 	_ "github.com/kildevaeld/filestore/filesystem"
 	"github.com/kildevaeld/torsten"
+	"github.com/kildevaeld/torsten/thumbnail"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/engine"
 	"github.com/labstack/echo/engine/fasthttp"
+	"github.com/labstack/echo/middleware"
 	_ "github.com/mattn/go-sqlite3"
 	uuid "github.com/satori/go.uuid"
 )
@@ -23,10 +25,14 @@ var octetStream = "application/octet-stream"
 var FileField = "file"
 var isTrueRegex = regexp.MustCompile("true|yes|1|ja|oui|si")
 
+type Options struct {
+}
+
 type HttpServer struct {
 	echo    *echo.Echo
 	torsten torsten.Torsten
 	log     *logrus.Logger
+	thumb   *thumbnail.Thumbnail
 }
 
 func notFoundOr(err error) error {
@@ -38,7 +44,7 @@ func notFoundOr(err error) error {
 
 func (self *HttpServer) handleFile(ctx echo.Context, options torsten.GetOptions, stat *torsten.FileInfo, path string) error {
 
-	reader, err := self.torsten.Open(path, options)
+	reader, err := self.torsten.Open(stat, options)
 	if err != nil {
 		return notFoundOr(err)
 	}
@@ -60,7 +66,7 @@ func (self *HttpServer) handleFiles(ctx echo.Context) error {
 	path := "/" + ctx.ParamValues()[0]
 
 	options := torsten.GetOptions{
-		Gid: uuid.NewV4(),
+		Gid: []uuid.UUID{uuid.NewV4()},
 		Uid: uuid.NewV4(),
 	}
 
@@ -74,8 +80,20 @@ func (self *HttpServer) handleFiles(ctx echo.Context) error {
 		return ctx.JSON(http.StatusOK, stat)
 
 	} else {
+		var stat *torsten.FileInfo
+		var err error
+		if idStr := ctx.QueryParam("id"); idStr != "" {
+			var id uuid.UUID
+			id, err = uuid.FromString(idStr)
+			if err != nil {
+				return err
+			}
+			stat, err = self.torsten.Stat(id, options)
 
-		stat, err := self.torsten.Stat(path, options)
+		} else {
+			stat, err = self.torsten.Stat(path, options)
+		}
+
 		if err != nil {
 			return err
 		}
@@ -84,14 +102,10 @@ func (self *HttpServer) handleFiles(ctx echo.Context) error {
 		}
 
 		var files []torsten.FileInfo
-		err = self.torsten.List(path, torsten.ListOptions{}, func(path string, node *torsten.FileInfo) error {
+		err = self.torsten.List(path, self.getListOptions(ctx), func(path string, node *torsten.FileInfo) error {
 			files = append(files, *node)
 			return nil
 		})
-
-		/*if len(files) == 0 {
-			return ctx.String(http.StatusNotFound, err.Error())
-		}*/
 
 		if err != nil {
 			return ctx.JSON(http.StatusInternalServerError, dict.Map{
@@ -108,7 +122,7 @@ func (self *HttpServer) handleFiles(ctx echo.Context) error {
 	return nil
 }
 
-func (self *HttpServer) getOptions(ctx echo.Context) (o torsten.CreateOptions) {
+func (self *HttpServer) getCreateOptions(ctx echo.Context) (o torsten.CreateOptions) {
 	o.Mime = ctx.QueryParam("mime")
 
 	if size, err := strconv.Atoi(ctx.QueryParam("size")); err == nil {
@@ -135,6 +149,19 @@ func (self *HttpServer) getOptions(ctx echo.Context) (o torsten.CreateOptions) {
 	return o
 }
 
+func (self HttpServer) getListOptions(ctx echo.Context) (o torsten.ListOptions) {
+
+	//user := ctx.Get("user").(*jwt.Token)
+
+	o.Uid = uuid.NewV4()
+	o.Gid = []uuid.UUID{uuid.NewV4()}
+
+	if isTrueRegex.Match([]byte(ctx.FormValue("show_hidden"))) {
+		o.Hidden = true
+	}
+	return o
+}
+
 /*
  handles multiform and streams
  takes mime, and overwrite as query and forms parameters
@@ -150,7 +177,7 @@ func (self *HttpServer) handleUpload(ctx echo.Context) error {
 	contentType := ctx.Request().Header().Get("Content-Type")
 
 	var reader io.ReadCloser
-	options := self.getOptions(ctx)
+	options := self.getCreateOptions(ctx)
 
 	if strings.HasPrefix(contentType, "multipart/form-data") {
 		file, err := ctx.FormFile(FileField)
@@ -225,7 +252,17 @@ func (self *HttpServer) Listen(addr string) error {
 
 func (self *HttpServer) listen(s engine.Server, addr string) error {
 	self.echo.SetDebug(true)
-	self.echo.Use(NewWithNameAndLogger("torsten", self.log))
+
+	self.echo.Use(NewWithNameAndLogger("torsten", self.log.WithField("prefix", "http")))
+	self.echo.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+	//AllowOrigins: []string{"https://labstack.com", "https://labstack.net"},
+	//AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
+	}))
+
+	/*self.echo.Use(middleware.JWTWithConfig(middleware.JWTConfig{
+		SigningKey: []byte("secret"),
+	}))*/
+
 	self.echo.Get("/*", self.handleFiles)
 	self.echo.Post("/*", self.handleUpload)
 	self.echo.Delete("/*", self.handleDeleteFile)
@@ -241,9 +278,12 @@ func (self *HttpServer) Close() error {
 
 func New(t torsten.Torsten, l *logrus.Logger) (*HttpServer, error) {
 
+	thumb := thumbnail.NewThumbnailer(t)
+
 	return &HttpServer{
 		echo:    echo.New(),
 		torsten: t, //torsten.New(data, meta),
 		log:     l,
+		thumb:   thumb,
 	}, nil
 }

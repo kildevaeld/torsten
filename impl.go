@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
@@ -23,30 +24,29 @@ type torsten struct {
 
 func (self *torsten) Create(path string, opts CreateOptions) (io.WriteCloser, error) {
 	var e error
-	if _, e = self.Stat(path, GetOptions{opts.Uid, opts.Gid}); e == nil && opts.Overwrite == false {
+	if _, e = self.Stat(path, GetOptions{[]uuid.UUID{opts.Gid}, opts.Uid}); e == nil && opts.Overwrite == false {
 		return nil, errors.New("file already exists")
 	} else if e == nil {
-		if e = self.Remove(path, RemoveOptions{opts.Uid, opts.Gid}); e != nil {
+		if e = self.Remove(path, RemoveOptions{[]uuid.UUID{opts.Gid}, opts.Uid}); e != nil {
 			return nil, fmt.Errorf("remove: %s", e)
 		}
 	}
 
 	name := filepath.Base(path)
-	/*dir := filepath.Dir(dir)
-	if dir == "." || dir == "" {
-		dir = "/"
-	} else if dir[0] != '/' {
-		dir = "/" + dir
-	}*/
+
 	info := &FileInfo{
-		Id:   uuid.NewV4(),
-		Size: opts.Size,
-		Mime: opts.Mime,
-		Gid:  opts.Gid,
-		Uid:  opts.Uid,
-		Mode: opts.Mode,
-		Name: name,
-		//Path: dir,
+		Id:     uuid.NewV4(),
+		Size:   opts.Size,
+		Mime:   opts.Mime,
+		Gid:    opts.Gid,
+		Uid:    opts.Uid,
+		Mode:   opts.Mode,
+		Name:   name,
+		Hidden: strings.HasPrefix(name, "."),
+		Meta:   opts.Meta,
+	}
+	if info.Meta == nil {
+		info.Meta = MetaMap{}
 	}
 
 	lock, err := self.states.Acquire(StateCreate, path)
@@ -54,28 +54,25 @@ func (self *torsten) Create(path string, opts CreateOptions) (io.WriteCloser, er
 		return nil, err
 	}
 
-	if err := self.runHook(PreCreate, info); err != nil {
+	if err := self.runHook(PreCreate, path, info); err != nil {
 		return nil, err
 	}
 
-	/*if err := self.meta.Prepare(path); err != nil {
-		return nil, err
-	}*/
-
 	var writer io.WriteCloser = newWriter(self, path, info, func(err error) error {
-		defer self.states.Release(lock)
+
 		if err != nil {
+			self.states.Release(lock)
 			return err
 		}
 
-		/*if err := self.meta.Finalize(path, info); err != nil {
-			return err
-		}*/
 		if err = self.meta.Insert(path, info); err != nil {
+			self.states.Release(lock)
 			return err
 		}
 
-		return self.runHook(PostCreate, info)
+		self.states.Release(lock)
+
+		return self.runHook(PostCreate, path, info)
 	})
 
 	if opts.Size == 0 {
@@ -107,12 +104,12 @@ func (self *torsten) notFoundOrLog(err error) error {
 }
 
 func (self *torsten) Remove(path string, o RemoveOptions) error {
-	_, err := self.Stat(path, GetOptions{o.Uid, o.Gid})
+	_, err := self.Stat(path, GetOptions{o.Gid, o.Uid})
 	if err != nil {
 		return self.notFoundOrLog(err)
 	}
 
-	if err = self.meta.Remove(path); err != nil {
+	if err = self.meta.Remove(path, o); err != nil {
 		return self.notFoundOrLog(err)
 	}
 
@@ -128,7 +125,7 @@ func (self *torsten) RemoveAll(path string, o RemoveOptions) error {
 	var list []string
 	if err := self.List(path, ListOptions{Recursive: true}, func(path string, node *FileInfo) error {
 		if !node.IsDir {
-			list = append(list, path)
+			list = append(list, filepath.Join(path, node.Name))
 		}
 		return nil
 	}); err != nil {
@@ -136,7 +133,7 @@ func (self *torsten) RemoveAll(path string, o RemoveOptions) error {
 	}
 
 	var wg sync.WaitGroup
-	if err := self.meta.Remove(path); err != nil {
+	if err := self.meta.Remove(path, o); err != nil {
 		return err
 	}
 
@@ -153,17 +150,65 @@ func (self *torsten) RemoveAll(path string, o RemoveOptions) error {
 	return nil
 }
 
-func (self *torsten) Open(path string, o GetOptions) (io.ReadCloser, error) {
-	if _, err := self.Stat(path, o); err != nil {
+func (self *torsten) Open(pathOrIdOrInfo interface{}, o GetOptions) (io.ReadCloser, error) {
+	var (
+		stat *FileInfo
+		err  error
+	)
+	if stat, err = self.infoFromInterface(pathOrIdOrInfo, o); err != nil {
 		return nil, err
 	}
-	return self.data.Get([]byte(path))
+
+	return self.data.Get([]byte(stat.FullPath()))
+
 }
-func (self *torsten) Stat(path string, o GetOptions) (*FileInfo, error) {
+
+func (self *torsten) infoFromInterface(v interface{}, o GetOptions) (*FileInfo, error) {
+	var (
+		stat *FileInfo
+		err  error
+	)
+
+	switch t := v.(type) {
+	case string:
+		stat, err = self.meta.Get(t, o)
+	case uuid.UUID:
+		var s FileInfo
+		err = self.meta.GetById(t, &s)
+
+		stat = &s
+	case *FileInfo:
+		stat = t
+	case FileInfo:
+		stat = &t
+	default:
+		return nil, errors.New("type")
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("STAT %v\n", stat)
+
+	return stat, nil
+}
+
+func (self *torsten) Stat(pathOtId interface{}, o GetOptions) (*FileInfo, error) {
+	var (
+		stat *FileInfo
+		err  error
+	)
+
+	if stat, err = self.infoFromInterface(pathOtId, o); err != nil {
+		return nil, err
+	}
+
+	path := stat.FullPath()
+
 	if self.states.HasLock(path) {
 		return nil, errors.New("is locked")
 	}
-	return self.meta.Get(path, o)
+	return stat, nil
 }
 
 func (self *torsten) List(prefix string, options ListOptions, fn func(path string, node *FileInfo) error) error {
@@ -204,13 +249,13 @@ func (self *torsten) runCreateHook(info *FileInfo, writer io.WriteCloser) (io.Wr
 	return writer, err
 }
 
-func (self *torsten) runHook(hook Hook, info *FileInfo) error {
+func (self *torsten) runHook(hook Hook, path string, info *FileInfo) error {
 	self.lock.RLock()
 	defer self.lock.RUnlock()
 
 	if hooks, ok := self.hooks[hook]; ok {
 		for _, h := range hooks {
-			if err := h(hook, info); err != nil {
+			if err := h(hook, path, info); err != nil {
 				return err
 			}
 		}
@@ -224,10 +269,12 @@ func New(f filestore.Store, m MetaAdaptor) Torsten {
 
 	l := &MemoryLock{locks: make(map[Lock]State)}
 
-	return &torsten{
+	t := &torsten{
 		data:   f,
 		meta:   m,
 		hooks:  make(map[Hook][]HookFunc),
 		states: l,
 	}
+
+	return t
 }

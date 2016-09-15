@@ -9,7 +9,7 @@ import (
 	"github.com/labstack/echo"
 )
 
-func NewWithNameAndLogger(name string, l *logrus.Logger) echo.MiddlewareFunc {
+func NewWithNameAndLogger(name string, l *logrus.Entry) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			start := time.Now()

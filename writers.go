@@ -142,6 +142,7 @@ func (self *writer) init() error {
 	}
 
 	go func() {
+		fmt.Println("writer init")
 		err := self.torsten.data.Set([]byte(self.path), self.buf, &filestore.SetOptions{
 			MimeType: self.info.Mime,
 			Size:     self.info.Size,
@@ -153,6 +154,7 @@ func (self *writer) init() error {
 }
 
 func (self *writer) Close() error {
+	self.init()
 	if self.err != nil {
 		return self.err
 	}
@@ -317,23 +319,4 @@ func newMimeWriter(writer io.WriteCloser, info *FileInfo) io.WriteCloser {
 		writer: writer,
 		info:   info,
 	}
-}
-
-type hook_writer struct {
-	writer  io.WriteCloser
-	torsten *torsten
-	info    *FileInfo
-}
-
-func (self *hook_writer) Write(bs []byte) (int, error) {
-	return self.writer.Write(bs)
-}
-
-func (self *hook_writer) Close() error {
-	err := self.writer.Close()
-	if err != nil {
-		return err
-	}
-
-	return self.torsten.runHook(PostCreate, self.info)
 }

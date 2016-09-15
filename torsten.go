@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/satori/go.uuid"
@@ -34,18 +35,9 @@ func (nt MetaMap) Value() (driver.Value, error) {
 	return string(b), nil
 }
 
-type Hook int
-
 var ErrNotFound = errors.New("Not Found")
 
-const (
-	PreCreate Hook = iota + 1
-	PostCreate
-	PreRemove
-	PostRemove
-)
-
-type HookFunc func(Hook, *FileInfo) error
+type HookFunc func(Hook, string, *FileInfo) error
 type CreateHookFunc func(*FileInfo, io.WriteCloser) (io.WriteCloser, error)
 type FileStatus int
 
@@ -70,8 +62,12 @@ type FileInfo struct {
 	Ctime  time.Time   `json:"ctime,omitempty"`
 	Mtime  time.Time   `json:"mtime,omitempty"`
 	IsDir  bool        `json:"is_dir,omitempty"`
-	//Path   string      `json:"path"`
-	Hidden bool `json:"hidden"`
+	Path   string      `json:"path"`
+	Hidden bool        `json:"hidden"`
+}
+
+func (self *FileInfo) FullPath() string {
+	return filepath.Join(self.Path, self.Name)
 }
 
 type FileNode struct {
@@ -91,12 +87,12 @@ type CreateOptions struct {
 }
 
 type GetOptions struct {
-	Gid uuid.UUID
+	Gid []uuid.UUID
 	Uid uuid.UUID
 }
 
 type RemoveOptions struct {
-	Gid uuid.UUID
+	Gid []uuid.UUID
 	Uid uuid.UUID
 }
 
@@ -104,8 +100,9 @@ type ListOptions struct {
 	Limit     int64
 	Offset    int64
 	Recursive bool
-	Gid       uuid.UUID
+	Gid       []uuid.UUID
 	Uid       uuid.UUID
+	Hidden    bool
 }
 
 type DataAdator interface {
@@ -119,9 +116,10 @@ type MetaAdaptor interface {
 	//Prepare(path string) error
 	//Finalize(path string, info *FileInfo) error
 	Update(path string, info *FileInfo) error
+	GetById(id uuid.UUID, info *FileInfo) error
 	Get(path string, options GetOptions) (*FileInfo, error)
 	List(prefix string, options ListOptions, fn func(path string, node *FileInfo) error) error
-	Remove(path string) error
+	Remove(path string, options RemoveOptions) error
 	Clean(before time.Time) (int64, error)
 }
 
@@ -133,9 +131,9 @@ type Torsten interface {
 
 	Remove(path string, o RemoveOptions) error
 	RemoveAll(path string, o RemoveOptions) error
-
-	Open(path string, options GetOptions) (io.ReadCloser, error)
-	Stat(path string, options GetOptions) (*FileInfo, error)
+	/// Open by path, id or FileInfo
+	Open(path interface{}, options GetOptions) (io.ReadCloser, error)
+	Stat(path interface{}, options GetOptions) (*FileInfo, error)
 	List(prefix string, options ListOptions, fn func(path string, node *FileInfo) error) error
 
 	RegisterHook(hook Hook, fn HookFunc)

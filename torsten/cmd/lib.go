@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"time"
+	"io"
 
 	"os"
 
@@ -67,9 +67,21 @@ func getTorsten() (torsten.Torsten, error) {
 
 	t := torsten.New(fs, meta)
 
-	i, e := meta.Clean(time.Now())
-	fmt.Printf("cleaning %d\n", i)
-	return t, e
+	//i, e := meta.Clean(time.Now())
+	hook := func(hook torsten.Hook, path string, info *torsten.FileInfo) error {
+		fmt.Printf("%s: %s\n", hook.String(), path)
+		return nil
+	}
+	t.RegisterHook(torsten.PostCreate, hook)
+	t.RegisterHook(torsten.PreCreate, hook)
+	t.RegisterHook(torsten.PreGet, hook)
+	t.RegisterHook(torsten.PostGet, hook)
+
+	t.RegisterCreateHook(func(i *torsten.FileInfo, w io.WriteCloser) (io.WriteCloser, error) {
+		fmt.Printf("Create Hook:\n")
+		return w, nil
+	})
+	return t, nil
 }
 
 func getLogger() (*logrus.Logger, error) {

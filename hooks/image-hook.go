@@ -2,6 +2,7 @@ package hooks
 
 import (
 	"bytes"
+	"fmt"
 	"image"
 	"image/gif"
 	"image/jpeg"
@@ -42,7 +43,7 @@ func (self *image_writer) Close() error {
 	}
 
 	if err != nil {
-		return err
+		return fmt.Errorf("ImageDecode: %s", err)
 	}
 
 	bounds := image.Bounds().Size()

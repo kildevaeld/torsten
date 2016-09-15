@@ -5,10 +5,11 @@ CREATE TABLE IF NOT EXISTS `file_node` (
     `path` varchar(255) NOT NULL,
     `uid` binary(16) NOT NULL,
     `gid` binary(16) NOT NULL,
-    `perms` int DEFAULT '190',
+    `perms` int DEFAULT '500',
     `ctime` datetime DEFAULT (datetime('now', 'localtime')),
     `mtime` datetime DEFAULT (datetime('now', 'localtime')),
     `parent_id` binary(16) DEFAULT NULL,
+    `hidden` smallint(1) DEFAULT 0,
     FOREIGN KEY (`parent_id`) REFERENCES `file_node`(`id`) ON DELETE CASCADE
 );
 
@@ -21,7 +22,7 @@ CREATE TABLE IF NOT EXISTS `file_info` (
     `size` bigint NOT NULL DEFAULT 0,
     `uid` binary(16) NOT NULL,
     `gid` binary(16) NOT NULL,
-    `perms` int DEFAULT '190' ,
+    `perms` int DEFAULT '500' ,
     `ctime` datetime DEFAULT (datetime('now', 'localtime')),
     `mtime` datetime DEFAULT (datetime('now', 'localtime')),
     `meta` text default '{}',
