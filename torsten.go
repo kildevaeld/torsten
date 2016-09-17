@@ -35,7 +35,15 @@ func (nt MetaMap) Value() (driver.Value, error) {
 	return string(b), nil
 }
 
+func (mm MetaMap) Has(key string) bool {
+	if _, ok := mm[key]; ok {
+		return true
+	}
+	return false
+}
+
 var ErrNotFound = errors.New("Not Found")
+var ErrAlreadyExists = errors.New("Already Exists")
 
 type HookFunc func(Hook, string, *FileInfo) error
 type CreateHookFunc func(*FileInfo, io.WriteCloser) (io.WriteCloser, error)

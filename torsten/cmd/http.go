@@ -21,7 +21,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/kildevaeld/torsten"
-	"github.com/kildevaeld/torsten/hooks"
 	"github.com/kildevaeld/torsten/http"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -41,9 +40,13 @@ func init() {
 	RootCmd.AddCommand(httpCmd)
 
 	httpCmd.Flags().StringP("address", "a", ":3000", "address")
-
+	httpCmd.Flags().BoolP("verbose", "v", false, "Show verbose output")
+	httpCmd.Flags().Int64("max-request-body", 20*1024*1024, "Maximum request body in bytes")
+	httpCmd.Flags().Int64("expires", 60*60*24*7, "Caching in seconds")
 	viper.BindPFlag("address", httpCmd.Flags().Lookup("address"))
-
+	viper.BindPFlag("verbose", httpCmd.Flags().Lookup("verbose"))
+	viper.BindPFlag("expires", httpCmd.Flags().Lookup("expires"))
+	viper.BindPFlag("max-request-body", httpCmd.Flags().Lookup("max-request-body"))
 }
 
 func runHttp() error {
@@ -58,16 +61,21 @@ func runHttp() error {
 		return err
 	}
 
-	tors.RegisterCreateHook(hooks.ImageHook())
+	//tors.RegisterCreateHook(hooks.ImageHook())
 
 	if log, err = getLogger(); err != nil {
 		return err
 	}
-	log.Level = logrus.DebugLevel
-
-	if serv, err = http.New(tors, log); err != nil {
-		return err
+	if viper.GetBool("verbose") {
+		log.Level = logrus.DebugLevel
+	} else {
+		log.Level = logrus.WarnLevel
 	}
+
+	serv = http.NewWithLogger(tors, log, http.Options{
+		Expires:        int(viper.GetInt64("expires")),
+		MaxRequestBody: int(viper.GetInt64("max-request-body")),
+	})
 
 	signal_chan := make(chan os.Signal, 1)
 	signal.Notify(signal_chan,

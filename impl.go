@@ -25,7 +25,7 @@ type torsten struct {
 func (self *torsten) Create(path string, opts CreateOptions) (io.WriteCloser, error) {
 	var e error
 	if _, e = self.Stat(path, GetOptions{[]uuid.UUID{opts.Gid}, opts.Uid}); e == nil && opts.Overwrite == false {
-		return nil, errors.New("file already exists")
+		return nil, ErrAlreadyExists
 	} else if e == nil {
 		if e = self.Remove(path, RemoveOptions{[]uuid.UUID{opts.Gid}, opts.Uid}); e != nil {
 			return nil, fmt.Errorf("remove: %s", e)

@@ -8,6 +8,8 @@ import (
 	"github.com/satori/go.uuid"
 )
 
+var ThumbnailPath = ".thumbnails"
+
 type Size struct {
 	W uint
 	H uint
@@ -39,6 +41,27 @@ func (self *Thumbnail) can(mime string) bool {
 		return ok
 	}
 	return false
+}
+
+func (self *Thumbnail) GetThumbnail(pathOrId interface{}, o torsten.GetOptions) (*torsten.FileInfo, error) {
+	var (
+		stat *torsten.FileInfo
+		err  error
+	)
+
+	stat, err = self.torsten.Stat(pathOrId, o)
+	if err != nil {
+		return nil, err
+	}
+
+	if stat.Meta.Has("thumbnail") {
+		return stat, err
+	}
+
+	path := filepath.Join(stat.Path, ThumbnailPath, stat.Name)
+
+	return self.torsten.Stat(path, o)
+
 }
 
 func (self *Thumbnail) createHook(hook torsten.Hook, path string, info *torsten.FileInfo) error {

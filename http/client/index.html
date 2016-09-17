@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title></title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="dist/torsten-client.bundle.js"></script>
+    <script src="dist/torsten-client-gui.bundle.js"></script>
+    <style>
+        div.progress {
+            position: relative;
+            margin: 80px;
+            width: 220px;
+            height: 220px;
+        }
+        
+        .progress canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        
+        .progress span {
+            color: #555;
+            display: block;
+            line-height: 220px;
+            text-align: center;
+            width: 220px;
+            font-family: sans-serif;
+            font-size: 40px;
+            font-weight: 100;
+            /*margin-left: 5px;*/
+        }
+    </style>
+</head>
+
+<body>
+    <div id="progress" data-percent="80"></div>
+    <input type="file" id="file" />
+    <button id="delete">Delete</button>
+    <script>
+        console.log(torsten.views)
+
+        /*let progress = new torsten.views.Progress({
+            size: 80,
+            lineWidth: 8
+        });*/
+       // document.querySelector('#progress').appendChild(progress.render().el);
+
+        var p = 0;
+        var inter = setInterval(function () {
+            if (p >= 100) return clearInterval(inter)
+            p += 12.6
+            //progress.setPercent(p);
+        }, 500);
+
+        var client = new torsten.TorstenClient({
+            endpoint: 'http://localhost:3000'
+        })
+
+        let collection = new torsten.views.FileCollection(null, {
+            client: client,
+            path: '/'
+        });
+
+        var view = new torsten.views.FileListView({
+            collection: collection
+        });
+
+        document.body.appendChild(view.render().el)
+
+        console.log(collection);
+
+        collection.fetch();
+
+        collection.on('progress', function(e) {
+            let pc = 100 / e.total * e.loaded
+            //progress.setPercent(pc)
+        })
+
+        var button = document.querySelector('#file');
+        button.addEventListener('change', function() {
+            var file = this.files[0];
+            collection.create(file.name, file)
+                //console.log(file)
+                /*client.create('/upload/' + file.name, file, {
+                    progress: function (e) {
+                        console.log(e)
+                    }
+                })
+                .then(function (res) {
+                    console.log(res);
+                })*/
+        })
+
+        /*
+        client.list('/')
+        .then(function (info) {
+            console.log(info)
+        })
+
+        client.open('/image.png', {
+            progress: function (e) {
+                console.log(e.loaded, e.total)
+            }
+        }).then( function (e) {
+            var doc = document.createElement('img');
+            doc.src = URL.createObjectURL(e);
+            document.body.appendChild(doc);
+        })
+
+        client.open('/readme4.md').then(function (e) {
+            return torsten.readBlobAsText(e)
+        }).then(function (re) {
+            console.log(re)
+        })
+
+        var button = document.querySelector('#file');
+        button.addEventListener('change', function () {
+            var file = this.files[0];
+            
+            //console.log(file)
+            client.create('/upload/' + file.name, file, {
+                progress: function (e) {
+                    console.log(e)
+                }
+            })
+            .then(function (res) {
+                console.log(res);
+            })
+        })
+        button = document.querySelector('#delete');
+        button.addEventListener('click', function () {
+            client.remove('/').then( function (res) {
+                console.log(res)
+            })
+        })*/
+    </script>
+
+</body>
+
+</html>
