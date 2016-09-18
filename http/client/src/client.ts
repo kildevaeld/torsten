@@ -5,7 +5,7 @@ import {isString, isFormData, isReadableStream, isNode, isBuffer} from './utils'
 import {FileInfo} from './file-info';
 import {createError} from './error';
 
-import * as request from './download'
+import * as request from './request'
 import {HttpMethod} from 'orange.request';
 
 

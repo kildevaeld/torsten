@@ -2,3 +2,4 @@
 path/
 *.sqlite
 torsten_path/
+.vscode

@@ -30,5 +30,5 @@ gulp.task('gui:templates', (done) => {
 });
 
 gulp.task('gui:templates:watch', () => {
-    return gulp.watch('./src/gui/templates/**/*.html', ['build:templates']);
+    return gulp.watch('./src/gui/templates/**/*.html', ['gui:templates']);
 })

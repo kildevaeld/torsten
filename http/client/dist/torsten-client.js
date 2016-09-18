@@ -66,6 +66,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	exports.TorstenClientError = error_1.TorstenClientError;
 	var utils_1 = __webpack_require__(3);
 	exports.readBlobAsText = utils_1.readBlobAsText;
+	exports.readBlobAsArrayBuffer = utils_1.readBlobAsArrayBuffer;
+	exports.readBlobAsDataURL = utils_1.readBlobAsDataURL;
 
 /***/ },
 /* 1 */
@@ -218,16 +220,18 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
+	var orange_1 = __webpack_require__(2);
+
 	var ReadableStream = function ReadableStream() {
 	    _classCallCheck(this, ReadableStream);
 	};
 
 	exports.ReadableStream = ReadableStream;
 	exports.isNode = !new Function("try {return this===window;}catch(e){ return false;}")();
-	var orange_1 = __webpack_require__(2);
-	exports.isObject = orange_1.isObject;
-	exports.isString = orange_1.isString;
-	exports.isFunction = orange_1.isFunction;
+	var orange_2 = __webpack_require__(2);
+	exports.isObject = orange_2.isObject;
+	exports.isString = orange_2.isString;
+	exports.isFunction = orange_2.isFunction;
 	function isBuffer(a) {
 	    if (exports.isNode) Buffer.isBuffer(a);
 	    return false;
@@ -252,7 +256,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 	exports.isFile = isFile;
 	function fileReaderReady(reader) {
-	    return new Promise(function (resolve, reject) {
+	    return new orange_1.Promise(function (resolve, reject) {
 	        reader.onload = function () {
 	            resolve(reader.result);
 	        };
@@ -261,19 +265,28 @@ return /******/ (function(modules) { // webpackBootstrap
 	        };
 	    });
 	}
+	exports.fileReaderReady = fileReaderReady;
 	function readBlobAsArrayBuffer(blob) {
 	    var reader = new FileReader();
 	    reader.readAsArrayBuffer(blob);
 	    return fileReaderReady(reader);
 	}
+	exports.readBlobAsArrayBuffer = readBlobAsArrayBuffer;
 	function readBlobAsText(blob) {
 	    var reader = new FileReader();
 	    reader.readAsText(blob);
 	    return fileReaderReady(reader);
 	}
 	exports.readBlobAsText = readBlobAsText;
+	function readBlobAsDataURL(blob) {
+	    var reader = new FileReader();
+	    reader.readAsDataURL(blob);
+	    return fileReaderReady(reader);
+	}
+	exports.readBlobAsDataURL = readBlobAsDataURL;
 	var path;
 	(function (path_1) {
+	    path_1.DELIMITER = "/";
 	    function join() {
 	        var out = [];
 
@@ -284,23 +297,23 @@ return /******/ (function(modules) { // webpackBootstrap
 	        for (var i = 0, ii = parts.length; i < ii; i++) {
 	            var s = 0,
 	                e = parts[i].length;
-	            if (parts[i] == "" || parts[i] == '') continue;
-	            if (parts[i][0] === '/') s = 1;
-	            if (parts[i][e - 1] === '/') e--;
+	            if (parts[i] === path_1.DELIMITER || parts[i] === '') continue;
+	            if (parts[i][0] === path_1.DELIMITER) s = 1;
+	            if (parts[i][e - 1] === path_1.DELIMITER) e--;
 	            out.push(parts[i].substring(s, e));
 	        }
-	        return '/' + out.join('/');
+	        return path_1.DELIMITER + out.join(path_1.DELIMITER);
 	    }
 	    path_1.join = join;
 	    function base(path) {
 	        if (!path) return "";
-	        var split = path.split('/');
+	        var split = path.split(path_1.DELIMITER);
 	        return split[split.length - 1];
 	    }
 	    path_1.base = base;
 	    function dir(path) {
 	        if (!path) return "";
-	        var split = path.split('/');
+	        var split = path.split(path_1.DELIMITER);
 	        split.pop();
 	        return join.apply(undefined, _toConsumableArray(split));
 	    }

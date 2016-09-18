@@ -18,17 +18,26 @@
         "src/client.ts",
         "src/error.ts",
         "src/stream.ts",
-        "src/download.ts",
+        "src/request.ts",
         "src/file-info.ts",
 
         "src/gui/index.ts",
         "src/gui/collection.ts",
         "src/gui/error.ts",
+        "src/gui/types.ts",
 
         "src/gui/list/index.ts",
         "src/gui/list/list.ts",
         "src/gui/list/list-item.ts",
-        "src/gui/list/progress.ts",
+        "src/gui/list/circular-progress.ts",
+
+        "src/gui/info/index.ts",
+        "src/gui/info/file-info.ts",
+
+        "src/gui/gallery/index.ts",
+        "src/gui/gallery/gallery.ts",
+
+
         "src/gui/templates/index.ts"
 
     ]

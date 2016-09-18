@@ -29,7 +29,9 @@ export class FileInfoModel extends Model {
 
 export interface FileCollectionOptions extends CollectionOptions<FileInfoModel> {
     path: string;
-    client: IClient
+    client: IClient;
+    showHidden?: boolean;
+    showDirectories?: boolean;
 }
 
 function normalizePath(path) {
@@ -77,8 +79,7 @@ export class FileCollection extends Collection<FileInfoModel> {
         return this._client.list(this.path, {
             progress: (e) => {
                 if (e.lengthComputable) {
-                    console.log(e.loaded, e.total)
-                    this.trigger('progress', e)
+                    this.trigger('fetch:progress', e)
                 }
             }
         })
@@ -91,13 +92,13 @@ export class FileCollection extends Collection<FileInfoModel> {
 
     }
 
-    create(name: string, data:any, options:CreateOptions={}): IPromise<FileInfoModel> {
+    upload(name: string, data:any, options:CreateOptions={}): IPromise<FileInfoModel> {
 
         let fullPath = path.join(this.path, name);
-
+        this.trigger('before:upload', fullPath, options)
         return this._client.create(fullPath, data, {
             progress: (e) => {
-                this.trigger('progress', e);
+                this.trigger('upload:progress', e);
                 if (options.progress) options.progress(e);
             }
         }).then( info => {
@@ -105,6 +106,7 @@ export class FileCollection extends Collection<FileInfoModel> {
                 client: this._client
             })
 
+            this.trigger('upload', model);
             this.add(model);
 
             return model;

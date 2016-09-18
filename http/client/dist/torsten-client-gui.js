@@ -63,6 +63,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 	__export(__webpack_require__(1));
 	__export(__webpack_require__(7));
+	__export(__webpack_require__(18));
 
 /***/ },
 /* 1 */
@@ -155,8 +156,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	            return this._client.list(this.path, {
 	                progress: function progress(e) {
 	                    if (e.lengthComputable) {
-	                        console.log(e.loaded, e.total);
-	                        _this3.trigger('progress', e);
+	                        _this3.trigger('fetch:progress', e);
 	                    }
 	                }
 	            }).then(function (files) {
@@ -166,22 +166,24 @@ return /******/ (function(modules) { // webpackBootstrap
 	            });
 	        }
 	    }, {
-	        key: 'create',
-	        value: function create(name, data) {
+	        key: 'upload',
+	        value: function upload(name, data) {
 	            var _this4 = this;
 
 	            var options = arguments.length <= 2 || arguments[2] === undefined ? {} : arguments[2];
 
 	            var fullPath = utils_1.path.join(this.path, name);
+	            this.trigger('before:upload', fullPath, options);
 	            return this._client.create(fullPath, data, {
 	                progress: function progress(e) {
-	                    _this4.trigger('progress', e);
+	                    _this4.trigger('upload:progress', e);
 	                    if (options.progress) options.progress(e);
 	                }
 	            }).then(function (info) {
 	                var model = new FileInfoModel(info, {
 	                    client: _this4._client
 	                });
+	                _this4.trigger('upload', model);
 	                _this4.add(model);
 	                return model;
 	            });
@@ -296,16 +298,18 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
+	var orange_1 = __webpack_require__(5);
+
 	var ReadableStream = function ReadableStream() {
 	    _classCallCheck(this, ReadableStream);
 	};
 
 	exports.ReadableStream = ReadableStream;
 	exports.isNode = !new Function("try {return this===window;}catch(e){ return false;}")();
-	var orange_1 = __webpack_require__(5);
-	exports.isObject = orange_1.isObject;
-	exports.isString = orange_1.isString;
-	exports.isFunction = orange_1.isFunction;
+	var orange_2 = __webpack_require__(5);
+	exports.isObject = orange_2.isObject;
+	exports.isString = orange_2.isString;
+	exports.isFunction = orange_2.isFunction;
 	function isBuffer(a) {
 	    if (exports.isNode) Buffer.isBuffer(a);
 	    return false;
@@ -330,7 +334,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 	exports.isFile = isFile;
 	function fileReaderReady(reader) {
-	    return new Promise(function (resolve, reject) {
+	    return new orange_1.Promise(function (resolve, reject) {
 	        reader.onload = function () {
 	            resolve(reader.result);
 	        };
@@ -339,19 +343,28 @@ return /******/ (function(modules) { // webpackBootstrap
 	        };
 	    });
 	}
+	exports.fileReaderReady = fileReaderReady;
 	function readBlobAsArrayBuffer(blob) {
 	    var reader = new FileReader();
 	    reader.readAsArrayBuffer(blob);
 	    return fileReaderReady(reader);
 	}
+	exports.readBlobAsArrayBuffer = readBlobAsArrayBuffer;
 	function readBlobAsText(blob) {
 	    var reader = new FileReader();
 	    reader.readAsText(blob);
 	    return fileReaderReady(reader);
 	}
 	exports.readBlobAsText = readBlobAsText;
+	function readBlobAsDataURL(blob) {
+	    var reader = new FileReader();
+	    reader.readAsDataURL(blob);
+	    return fileReaderReady(reader);
+	}
+	exports.readBlobAsDataURL = readBlobAsDataURL;
 	var path;
 	(function (path_1) {
+	    path_1.DELIMITER = "/";
 	    function join() {
 	        var out = [];
 
@@ -362,23 +375,23 @@ return /******/ (function(modules) { // webpackBootstrap
 	        for (var i = 0, ii = parts.length; i < ii; i++) {
 	            var s = 0,
 	                e = parts[i].length;
-	            if (parts[i] == "" || parts[i] == '') continue;
-	            if (parts[i][0] === '/') s = 1;
-	            if (parts[i][e - 1] === '/') e--;
+	            if (parts[i] === path_1.DELIMITER || parts[i] === '') continue;
+	            if (parts[i][0] === path_1.DELIMITER) s = 1;
+	            if (parts[i][e - 1] === path_1.DELIMITER) e--;
 	            out.push(parts[i].substring(s, e));
 	        }
-	        return '/' + out.join('/');
+	        return path_1.DELIMITER + out.join(path_1.DELIMITER);
 	    }
 	    path_1.join = join;
 	    function base(path) {
 	        if (!path) return "";
-	        var split = path.split('/');
+	        var split = path.split(path_1.DELIMITER);
 	        return split[split.length - 1];
 	    }
 	    path_1.base = base;
 	    function dir(path) {
 	        if (!path) return "";
-	        var split = path.split('/');
+	        var split = path.split(path_1.DELIMITER);
 	        split.pop();
 	        return join.apply(undefined, _toConsumableArray(split));
 	    }
@@ -435,7 +448,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	//import {AssetsCollection} from '../../models/index';
 	var Blazy = __webpack_require__(17);
 	exports.FileListEmptyView = views_1.View.extend({
-	    className: 'assets-list-empty-view',
+	    className: 'file-list-empty-view',
 	    template: 'No files uploaded yet.'
 	});
 	var FileListView = function (_views_1$CollectionVi) {
@@ -449,12 +462,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	        _this.options = options || {};
 	        _this.sort = false;
 	        _this._onSroll = throttle(orange_1.bind(_this._onSroll, _this), 0);
-	        _this._initEvents();
 	        _this._initBlazy();
 	        return _this;
 	    }
 
 	    _createClass(FileListView, [{
+	        key: "onCollection",
+	        value: function onCollection(model) {
+	            if (model) this._initEvents();
+	        }
+	    }, {
 	        key: "_initEvents",
 	        value: function _initEvents() {
 	            var _this3 = this;
@@ -496,35 +513,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	                    }
 	                }, 100);
 	            });
-	            var progress;
-	            this.listenTo(this.collection, 'before:fetch', function () {
-	                var loader = _this3.el.querySelector('.loader');
-	                if (loader) return;
-	                loader = document.createElement('div');
-	                orange_dom_1.addClass(loader, 'progress');
-	                _this3.el.appendChild(loader);
-	                progress = new progress_1.Progress({
-	                    size: 60,
-	                    lineWidth: 6,
-	                    el: loader
-	                });
-	                progress.render();
-	            });
-	            this.listenTo(this.collection, 'fetch', function () {
-	                var loader = _this3.el.querySelector('.progress');
-	                if (loader) {
-	                    _this3.el.removeChild(loader);
-	                }
-	                if (progress) {
-	                    progress.destroy();
-	                }
-	            });
+	            this.listenTo(this.collection, 'before:fetch', this._showLoaderView);
+	            this.listenTo(this.collection, 'fetch', this._hideLoaderView);
 	            this.listenTo(this.collection, 'progress', function (e) {
-	                if (!e.lengthComputable) {
-	                    return;
-	                }
-	                var pc = 100 / e.total * e.loaded;
-	                if (progress) progress.setPercent(pc);
+	                if (!e.lengthComputable) return;
+	                if (_this3._progress) _this3._progress.setPercent(100 / e.total * e.loaded);
 	            });
 	        }
 	    }, {
@@ -535,6 +528,23 @@ return /******/ (function(modules) { // webpackBootstrap
 	            } else {
 	                this._initBlazy();
 	            }
+	        }
+	    }, {
+	        key: "_showLoaderView",
+	        value: function _showLoaderView() {
+	            if (this._progress) return;
+	            this._progress = new progress_1.Progress({
+	                size: 60,
+	                lineWidth: 6
+	            });
+	            this.el.appendChild(this._progress.render().el);
+	            orange_dom_1.addClass(this._progress.el, 'loader');
+	        }
+	    }, {
+	        key: "_hideLoaderView",
+	        value: function _hideLoaderView() {
+	            if (!this._progress) return;
+	            this._progress.remove().destroy();
 	        }
 	    }, {
 	        key: "_onSroll",
@@ -604,12 +614,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	    return FileListView;
 	}(views_1.CollectionView);
 	FileListView = __decorate([views_1.attributes({
-	    className: 'assets-list collection-mode',
+	    //template: () => templates.list,
+	    className: 'file-list collection-mode',
 	    childView: list_item_1.FileListItemView,
 	    emptyView: exports.FileListEmptyView,
-	    events: {
-	        scroll: '_onSroll'
-	    }
+	    //childViewContainer: '.file-list-item-container',
+	    events: {}
 	}), __metadata('design:paramtypes', [Object])], FileListView);
 	exports.FileListView = FileListView;
 	function elementInView(ele, container) {
@@ -1238,7 +1248,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	var views_1 = __webpack_require__(9);
 	//import {template} from '../utils';
 	//import {getMimeIcon} from '../mime-types';
-	//import {AssetsModel} from '../../models/index'
+	//import {fileModel} from '../../models/index'
 	var orange_1 = __webpack_require__(5);
 	var orange_dom_1 = __webpack_require__(10);
 	var index_1 = __webpack_require__(15);
@@ -1306,9 +1316,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	        return index_1.default['list-item'];
 	    },
 	    tagName: 'div',
-	    className: 'assets-list-item',
+	    className: 'file-list-item',
 	    ui: {
-	        remove: '.assets-list-item-close-button',
+	        remove: '.file-list-item.close-button',
 	        name: '.name',
 	        mime: '.mime'
 	    },
@@ -1330,8 +1340,10 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	Object.defineProperty(exports, "__esModule", { value: true });
 	exports.default = {
-	    "list-item": "<a class=\"assets-list-item-close-button\"></a>\n<div class=\"thumbnail-container\">  <i class=\"mime mime-unknown\"></i>\n</div>\n<div class=\"name\"></div>",
-	    "list": ""
+	    "file-info": "<div class=\"preview-region\">\n</div>\n<div class=\"info-region\">  <table>  <tr>  <td>Name</td>  <td class=\"name\"></td>  </tr>  <tr>  <td>Mime</td>  <td class=\"mimetype\"></td>  </tr>  <tr>  <td>Size</td>  <td class=\"size\"></td>  </tr>  <tr>  <td>Download</td>  <td class=\"download\">  <a></a>  </td>  </tr>  </table>\n</div>",
+	    "gallery": "<div class=\"gallery-area\">  <div class=\"gallery-list\">  </div>  <div class=\"gallery-info\"></div>  </div>\n<div class=\"upload-progress-container\">  <div class=\"upload-progress\"></div>\n</div>\n",
+	    "list-item": "<a class=\"close-button\"></a>\n<div class=\"thumbnail-container\">  <i class=\"mime mime-unknown\"></i>\n</div>\n<div class=\"name\"></div>",
+	    "list": "<div class=\"file-list-item-container\">\n</div>\n<div class=\"file-list-download-progress progress\"></div>\n"
 	};
 
 /***/ },
@@ -1393,69 +1405,16 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	            var newPercent = percent;
 	            var diff = Math.abs(percent - this._percent);
-	            /*var draw = (percent) => {
-	                if (percent >= newPercent) {
-	                    this._percent = newPercent
-	                    return
-	                }
-	                 requestAnimationFrame(() => {
-	                    this.ctx.clearRect(0, 0, 100, 100)
-	                    this.drawCircle(this.ctx, this.options.background, this.options.lineWidth, 100 / 100);
-	                    this.drawCircle(this.ctx, this.options.foreground, this.options.lineWidth, percent / 100);
-	                    this.el.querySelector('span').textContent = Math.floor(percent) + '%'
-	                    //this._percent = percent
-	                    draw(percent + 1)
-	                })
-	               }
-	            //console.log(this._percent, newPercent)
-	            draw(this._percent + 1)*/
 	            requestAnimationFrame(function () {
 	                _this2.ctx.clearRect(0, 0, 100, 100);
-	                _this2.drawCircle(_this2.ctx, _this2.options.background, _this2.options.lineWidth, 100 / 100);
-	                _this2.drawCircle(_this2.ctx, _this2.options.foreground, _this2.options.lineWidth, percent / 100);
+	                _this2._drawCircle(_this2.ctx, _this2.options.background, _this2.options.lineWidth, 100 / 100);
+	                _this2._drawCircle(_this2.ctx, _this2.options.foreground, _this2.options.lineWidth, percent / 100);
 	                _this2.el.querySelector('span').textContent = Math.floor(percent) + '%';
-	                //this._percent = percent
-	                // draw(percent + 1)
 	            });
 	        }
 	    }, {
-	        key: "draw",
-	        value: function draw(percent) {
-	            this.el.innerHTML = "";
-	            //let percent = parseInt(this.el.getAttribute('data-percent')||<any>0);
-	            var options = this.options;
-	            var canvas = document.createElement('canvas');
-	            var span = document.createElement('span');
-	            span.textContent = Math.round(percent) + '%';
-	            if (typeof G_vmlCanvasManager !== 'undefined') {
-	                G_vmlCanvasManager.initElement(canvas);
-	            }
-	            var ctx = canvas.getContext('2d');
-	            canvas.width = canvas.height = options.size;
-	            this.el.appendChild(span);
-	            this.el.appendChild(canvas);
-	            ctx.translate(options.size / 2, options.size / 2); // change center
-	            ctx.rotate((-1 / 2 + options.rotate / 180) * Math.PI); // rotate -90 deg
-	            span.style.lineHeight = options.size + 'px';
-	            span.style.width = options.size + 'px';
-	            span.style.fontSize = options.size / 5 + 'px';
-	            //imd = ctx.getImageData(0, 0, 240, 240);
-	            var radius = (options.size - options.lineWidth) / 2;
-	            var drawCircle = function drawCircle(color, lineWidth, percent) {
-	                percent = Math.min(Math.max(0, percent || 1), 1);
-	                ctx.beginPath();
-	                ctx.arc(0, 0, radius, 0, Math.PI * 2 * percent, false);
-	                ctx.strokeStyle = color;
-	                ctx.lineCap = 'round'; // butt, round or square
-	                ctx.lineWidth = lineWidth;
-	                ctx.stroke();
-	            };
-	            drawCircle(options.background, options.lineWidth, 100 / 100);
-	            drawCircle(options.foreground, options.lineWidth, percent / 100);
-	        }
-	    }, {
-	        key: "drawCircle",
-	        value: function drawCircle(ctx, color, lineWidth, percent) {
+	        key: "_drawCircle",
+	        value: function _drawCircle(ctx, color, lineWidth, percent) {
 	            var radius = (this.options.size - this.options.lineWidth) / 2;
 	            percent = Math.min(Math.max(0, percent || 1), 1);
 	            ctx.beginPath();
@@ -1491,8 +1450,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	            span.style.fontSize = options.size / 5 + 'px';
 	            this.ctx = ctx;
 	            this.setPercent(0);
-	            //this.drawCircle(ctx, options.background, options.lineWidth, 100 / 100);
-	            //this.drawCircle(ctx, options.foreground, options.lineWidth, 20 / 100);
 	            return this;
 	        }
 	    }]);
@@ -1832,6 +1789,240 @@ return /******/ (function(modules) { // webpackBootstrap
 	        };
 	    }
 	});
+
+/***/ },
+/* 18 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+
+	function __export(m) {
+	    for (var p in m) {
+	        if (!exports.hasOwnProperty(p)) exports[p] = m[p];
+	    }
+	}
+	__export(__webpack_require__(19));
+
+/***/ },
+/* 19 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; };
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+	var __decorate = undefined && undefined.__decorate || function (decorators, target, key, desc) {
+	    var c = arguments.length,
+	        r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc,
+	        d;
+	    if ((typeof Reflect === "undefined" ? "undefined" : _typeof(Reflect)) === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);else for (var i = decorators.length - 1; i >= 0; i--) {
+	        if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+	    }return c > 3 && r && Object.defineProperty(target, key, r), r;
+	};
+	var __metadata = undefined && undefined.__metadata || function (k, v) {
+	    if ((typeof Reflect === "undefined" ? "undefined" : _typeof(Reflect)) === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+	};
+	var views_1 = __webpack_require__(9);
+	var orange_1 = __webpack_require__(5);
+	var index_1 = __webpack_require__(7);
+	var index_2 = __webpack_require__(20);
+	var index_3 = __webpack_require__(15);
+	var collection_1 = __webpack_require__(1);
+	var GalleryView = function (_views_1$LayoutView) {
+	    _inherits(GalleryView, _views_1$LayoutView);
+
+	    function GalleryView(options) {
+	        _classCallCheck(this, GalleryView);
+
+	        var _this = _possibleConstructorReturn(this, (GalleryView.__proto__ || Object.getPrototypeOf(GalleryView)).call(this, orange_1.extend({}, options, {
+	            regions: {
+	                list: '.gallery-list',
+	                info: '.gallery-info'
+	            }
+	        })));
+
+	        _this.options = options;
+	        _this.collections = [];
+	        _this.client = options.client;
+	        _this.list = new index_1.FileListView();
+	        _this.info = new index_2.FileInfoView({
+	            client: _this.client
+	        });
+	        _this.listenTo(_this.list, 'selected', _this._onFileInfoSelected);
+	        return _this;
+	    }
+
+	    _createClass(GalleryView, [{
+	        key: "_onFileInfoSelected",
+	        value: function _onFileInfoSelected(view, model) {
+	            this.selected = model;
+	        }
+	    }, {
+	        key: "_setCollection",
+	        value: function _setCollection(collection) {
+	            this.list.collection = collection;
+	        }
+	    }, {
+	        key: "onRender",
+	        value: function onRender() {
+	            this.regions['list'].show(this.list);
+	            this.regions['info'].show(this.info);
+	        }
+	    }, {
+	        key: "root",
+	        set: function set(path) {
+	            if (this._root == path) return;
+	            this._root = path;
+	            for (var i = 0, ii = this.collections.length; i < ii; i++) {
+	                this.collections[i].destroy();
+	            }
+	            this.collections = [new collection_1.FileCollection(null, {
+	                client: this.client,
+	                path: this._root
+	            })];
+	            this._setCollection(this.collections[0]);
+	            this.collections[0].fetch();
+	        },
+	        get: function get() {
+	            return this._root;
+	        }
+	    }, {
+	        key: "selected",
+	        get: function get() {
+	            return this._selected;
+	        },
+	        set: function set(model) {
+	            this._selected = model;
+	            this.info.model = model;
+	        }
+	    }]);
+
+	    return GalleryView;
+	}(views_1.LayoutView);
+	GalleryView = __decorate([views_1.attributes({
+	    template: function template() {
+	        return index_3.default['gallery'];
+	    },
+	    className: 'file-gallery'
+	}), __metadata('design:paramtypes', [Object])], GalleryView);
+	exports.GalleryView = GalleryView;
+
+/***/ },
+/* 20 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+
+	function __export(m) {
+	    for (var p in m) {
+	        if (!exports.hasOwnProperty(p)) exports[p] = m[p];
+	    }
+	}
+	__export(__webpack_require__(21));
+
+/***/ },
+/* 21 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; };
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+	var __decorate = undefined && undefined.__decorate || function (decorators, target, key, desc) {
+	    var c = arguments.length,
+	        r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc,
+	        d;
+	    if ((typeof Reflect === "undefined" ? "undefined" : _typeof(Reflect)) === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);else for (var i = decorators.length - 1; i >= 0; i--) {
+	        if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+	    }return c > 3 && r && Object.defineProperty(target, key, r), r;
+	};
+	var __metadata = undefined && undefined.__metadata || function (k, v) {
+	    if ((typeof Reflect === "undefined" ? "undefined" : _typeof(Reflect)) === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+	};
+	var views_1 = __webpack_require__(9);
+	var index_1 = __webpack_require__(15);
+	var FileInfoView = function (_views_1$View) {
+	    _inherits(FileInfoView, _views_1$View);
+
+	    function FileInfoView(options) {
+	        _classCallCheck(this, FileInfoView);
+
+	        var _this = _possibleConstructorReturn(this, (FileInfoView.__proto__ || Object.getPrototypeOf(FileInfoView)).call(this, options));
+
+	        _this.options = options;
+	        _this.client = options.client;
+	        return _this;
+	    }
+
+	    _createClass(FileInfoView, [{
+	        key: "onModel",
+	        value: function onModel(model) {
+	            if (model == null) {
+	                return this.clear();
+	            }
+	            this._update_ui(model);
+	        }
+	    }, {
+	        key: "onRender",
+	        value: function onRender() {
+	            this.__rendered = true;
+	            if (this.model) this._update_ui(this.model);
+	        }
+	    }, {
+	        key: "clear",
+	        value: function clear() {
+	            if (!this.__rendered) return this;
+	            var ui = this.ui;
+	            ui.name.textContent = '';
+	            ui.mime.textContent = '';
+	            ui.size.textContent = '';
+	            return this;
+	        }
+	    }, {
+	        key: "_update_ui",
+	        value: function _update_ui(model) {
+	            if (!this.__rendered) return this;
+	            var ui = this.ui;
+	            ui.name.textContent = model.get('name');
+	            ui.mime.textContent = model.get('mime');
+	            ui.size.textContent = model.get('size');
+	            ui.download.textContent = model.get('name');
+	            var url = this.client.endpoint + model.fullPath + '?download=true';
+	            ui.download.setAttribute('href', url);
+	        }
+	    }]);
+
+	    return FileInfoView;
+	}(views_1.View);
+	FileInfoView = __decorate([views_1.attributes({
+	    className: 'file-info',
+	    template: function template() {
+	        return index_1.default['file-info'];
+	    },
+	    ui: {
+	        name: '.name',
+	        mime: '.mimetype',
+	        size: '.size',
+	        download: '.download a'
+	    }
+	}), __metadata('design:paramtypes', [Object])], FileInfoView);
+	exports.FileInfoView = FileInfoView;
 
 /***/ }
 /******/ ])

@@ -2,7 +2,7 @@
 import {View, attributes, ViewOptions} from 'views';
 //import {template} from '../utils';
 //import {getMimeIcon} from '../mime-types';
-//import {AssetsModel} from '../../models/index'
+//import {fileModel} from '../../models/index'
 import {truncate} from 'orange';
 import {addClass, removeClass} from 'orange.dom';
 import templates from '../templates/index';
@@ -11,9 +11,9 @@ import {FileInfoModel} from '../collection'
 @attributes({
     template: () => templates['list-item'],
     tagName: 'div',
-    className: 'assets-list-item',
+    className: 'file-list-item',
     ui: {
-        remove: '.assets-list-item-close-button',
+        remove: '.file-list-item.close-button',
         name: '.name',
         mime: '.mime'
     },

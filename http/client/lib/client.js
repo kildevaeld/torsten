@@ -3,7 +3,7 @@ const orange_1 = require('orange');
 const utils_1 = require('./utils');
 const file_info_1 = require('./file-info');
 const error_1 = require('./error');
-const request = require('./download');
+const request = require('./request');
 const orange_request_1 = require('orange.request');
 function validateConfig(options) {
 }

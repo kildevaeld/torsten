@@ -11,7 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 const views_1 = require('views');
 //import {template} from '../utils';
 //import {getMimeIcon} from '../mime-types';
-//import {AssetsModel} from '../../models/index'
+//import {fileModel} from '../../models/index'
 const orange_1 = require('orange');
 const orange_dom_1 = require('orange.dom');
 const index_1 = require('../templates/index');
@@ -59,9 +59,9 @@ FileListItemView = __decorate([
     views_1.attributes({
         template: () => index_1.default['list-item'],
         tagName: 'div',
-        className: 'assets-list-item',
+        className: 'file-list-item',
         ui: {
-            remove: '.assets-list-item-close-button',
+            remove: '.file-list-item.close-button',
             name: '.name',
             mime: '.mime'
         },

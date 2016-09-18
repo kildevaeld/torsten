@@ -12,7 +12,6 @@ export declare class Progress extends View<HTMLDivElement> {
     ctx: CanvasRenderingContext2D;
     constructor(options?: ProgressOptions);
     setPercent(percent: number): void;
-    draw(percent: any): void;
-    drawCircle(ctx: any, color: any, lineWidth: any, percent: any): void;
+    private _drawCircle(ctx, color, lineWidth, percent);
     render(): this;
 }

@@ -1,5 +1,6 @@
 
 export * from './client';
 export * from './types';
-export {TorstenClientError} from './error'
-export {readBlobAsText} from './utils'
+export {TorstenClientError} from './error';
+export {readBlobAsText, readBlobAsArrayBuffer, 
+    readBlobAsDataURL} from './utils';

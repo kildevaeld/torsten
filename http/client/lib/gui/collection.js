@@ -53,8 +53,7 @@ class FileCollection extends collection_1.Collection {
         return this._client.list(this.path, {
             progress: (e) => {
                 if (e.lengthComputable) {
-                    console.log(e.loaded, e.total);
-                    this.trigger('progress', e);
+                    this.trigger('fetch:progress', e);
                 }
             }
         })
@@ -64,11 +63,12 @@ class FileCollection extends collection_1.Collection {
             return this.models;
         });
     }
-    create(name, data, options = {}) {
+    upload(name, data, options = {}) {
         let fullPath = utils_1.path.join(this.path, name);
+        this.trigger('before:upload', fullPath, options);
         return this._client.create(fullPath, data, {
             progress: (e) => {
-                this.trigger('progress', e);
+                this.trigger('upload:progress', e);
                 if (options.progress)
                     options.progress(e);
             }
@@ -76,6 +76,7 @@ class FileCollection extends collection_1.Collection {
             let model = new FileInfoModel(info, {
                 client: this._client
             });
+            this.trigger('upload', model);
             this.add(model);
             return model;
         });

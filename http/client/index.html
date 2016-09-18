@@ -5,6 +5,8 @@
     <title></title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="dist/css/file-gallery.css" rel="stylesheet" type="text/css" />
+
     <script src="dist/torsten-client.bundle.js"></script>
     <script src="dist/torsten-client-gui.bundle.js"></script>
     <style>
@@ -33,110 +35,43 @@
             font-weight: 100;
             /*margin-left: 5px;*/
         }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            padding: 10px;
+        }
+        
+        .file-gallery {
+            font-family: 'HelveticaNeue', Arial, Helvetica, sans-serif;
+            height: 100vh;
+        }
+        
+        .file-toolbar {
+            background-color: #eee;
+        }
     </style>
 </head>
 
 <body>
-    <div id="progress" data-percent="80"></div>
-    <input type="file" id="file" />
-    <button id="delete">Delete</button>
     <script>
         console.log(torsten.views)
-
-        /*let progress = new torsten.views.Progress({
-            size: 80,
-            lineWidth: 8
-        });*/
-       // document.querySelector('#progress').appendChild(progress.render().el);
-
-        var p = 0;
-        var inter = setInterval(function () {
-            if (p >= 100) return clearInterval(inter)
-            p += 12.6
-            //progress.setPercent(p);
-        }, 500);
 
         var client = new torsten.TorstenClient({
             endpoint: 'http://localhost:3000'
         })
 
-        let collection = new torsten.views.FileCollection(null, {
-            client: client,
-            path: '/'
+        let gallery = new torsten.views.GalleryView({
+            client: client
         });
 
-        var view = new torsten.views.FileListView({
-            collection: collection
-        });
+        var body = document.body;
 
-        document.body.appendChild(view.render().el)
+        body.appendChild(gallery.render().el);
 
-        console.log(collection);
-
-        collection.fetch();
-
-        collection.on('progress', function(e) {
-            let pc = 100 / e.total * e.loaded
-            //progress.setPercent(pc)
-        })
-
-        var button = document.querySelector('#file');
-        button.addEventListener('change', function() {
-            var file = this.files[0];
-            collection.create(file.name, file)
-                //console.log(file)
-                /*client.create('/upload/' + file.name, file, {
-                    progress: function (e) {
-                        console.log(e)
-                    }
-                })
-                .then(function (res) {
-                    console.log(res);
-                })*/
-        })
-
-        /*
-        client.list('/')
-        .then(function (info) {
-            console.log(info)
-        })
-
-        client.open('/image.png', {
-            progress: function (e) {
-                console.log(e.loaded, e.total)
-            }
-        }).then( function (e) {
-            var doc = document.createElement('img');
-            doc.src = URL.createObjectURL(e);
-            document.body.appendChild(doc);
-        })
-
-        client.open('/readme4.md').then(function (e) {
-            return torsten.readBlobAsText(e)
-        }).then(function (re) {
-            console.log(re)
-        })
-
-        var button = document.querySelector('#file');
-        button.addEventListener('change', function () {
-            var file = this.files[0];
-            
-            //console.log(file)
-            client.create('/upload/' + file.name, file, {
-                progress: function (e) {
-                    console.log(e)
-                }
-            })
-            .then(function (res) {
-                console.log(res);
-            })
-        })
-        button = document.querySelector('#delete');
-        button.addEventListener('click', function () {
-            client.remove('/').then( function (res) {
-                console.log(res)
-            })
-        })*/
+        gallery.root = "/"
     </script>
 
 </body>

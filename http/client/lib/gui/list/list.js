@@ -16,7 +16,7 @@ const progress_1 = require('./progress');
 //import {AssetsCollection} from '../../models/index';
 const Blazy = require('blazy');
 exports.FileListEmptyView = views_1.View.extend({
-    className: 'assets-list-empty-view',
+    className: 'file-list-empty-view',
     template: 'No files uploaded yet.'
 });
 let FileListView = class FileListView extends views_1.CollectionView {
@@ -25,8 +25,11 @@ let FileListView = class FileListView extends views_1.CollectionView {
         this.options = options || {};
         this.sort = false;
         this._onSroll = throttle(orange_1.bind(this._onSroll, this), 0);
-        this._initEvents();
         this._initBlazy();
+    }
+    onCollection(model) {
+        if (model)
+            this._initEvents();
     }
     _initEvents() {
         this.listenTo(this, 'childview:click', function (view, model) {
@@ -67,37 +70,13 @@ let FileListView = class FileListView extends views_1.CollectionView {
                 }
             }, 100);
         });
-        var progress;
-        this.listenTo(this.collection, 'before:fetch', () => {
-            let loader = this.el.querySelector('.loader');
-            if (loader)
-                return;
-            loader = document.createElement('div');
-            orange_dom_1.addClass(loader, 'progress');
-            this.el.appendChild(loader);
-            progress = new progress_1.Progress({
-                size: 60,
-                lineWidth: 6,
-                el: loader
-            });
-            progress.render();
-        });
-        this.listenTo(this.collection, 'fetch', () => {
-            let loader = this.el.querySelector('.progress');
-            if (loader) {
-                this.el.removeChild(loader);
-            }
-            if (progress) {
-                progress.destroy();
-            }
-        });
+        this.listenTo(this.collection, 'before:fetch', this._showLoaderView);
+        this.listenTo(this.collection, 'fetch', this._hideLoaderView);
         this.listenTo(this.collection, 'progress', (e) => {
-            if (!e.lengthComputable) {
+            if (!e.lengthComputable)
                 return;
-            }
-            let pc = 100 / e.total * e.loaded;
-            if (progress)
-                progress.setPercent(pc);
+            if (this._progress)
+                this._progress.setPercent(100 / e.total * e.loaded);
         });
     }
     onRenderCollection() {
@@ -107,6 +86,21 @@ let FileListView = class FileListView extends views_1.CollectionView {
         else {
             this._initBlazy();
         }
+    }
+    _showLoaderView() {
+        if (this._progress)
+            return;
+        this._progress = new progress_1.Progress({
+            size: 60,
+            lineWidth: 6
+        });
+        this.el.appendChild(this._progress.render().el);
+        orange_dom_1.addClass(this._progress.el, 'loader');
+    }
+    _hideLoaderView() {
+        if (!this._progress)
+            return;
+        this._progress.remove().destroy();
     }
     _onSroll(e) {
         let index = this.index ? this.index : (this.index = 0), len = this.children.length;
@@ -165,12 +159,12 @@ let FileListView = class FileListView extends views_1.CollectionView {
 };
 FileListView = __decorate([
     views_1.attributes({
-        className: 'assets-list collection-mode',
+        //template: () => templates.list,
+        className: 'file-list collection-mode',
         childView: list_item_1.FileListItemView,
         emptyView: exports.FileListEmptyView,
-        events: {
-            scroll: '_onSroll'
-        },
+        //childViewContainer: '.file-list-item-container',
+        events: {}
     }), 
     __metadata('design:paramtypes', [Object])
 ], FileListView);

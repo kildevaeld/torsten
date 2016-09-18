@@ -24,7 +24,7 @@ var webpackNode = {
 };
 
 
-gulp.task('gui:webpack', ['gui:typescript', 'gui:templates'], () => {
+gulp.task('gui:webpack', ['gui:typescript'], () => {
     var output = {
         library: ['torsten', 'views'],
         libraryTarget: 'umd',
@@ -103,9 +103,9 @@ gulp.task('gui:typescript', ['gui:templates'], () => {
 
 })
 
-gulp.task('gui:default', ['gui:webpack', 'gui:webpack:bundle'])
+gulp.task('gui:default', ['gui:webpack', 'gui:webpack:bundle', 'gui:styles'])
 
 
-gulp.task('gui:watch', () => {
+gulp.task('gui:watch', ['gui:templates:watch', 'gui:styles:watch'], () => {
     gulp.watch('./src/gui/**/*.ts', ['gui:webpack:bundle', 'gui:webpack'])
 })

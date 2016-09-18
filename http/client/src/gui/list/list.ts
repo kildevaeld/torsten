@@ -6,6 +6,9 @@ import {bind} from 'orange';
 import {FileListItemView} from './list-item';
 import {FileCollection} from '../collection';
 import {Progress} from './progress'
+import {IProgress} from '../types';
+import templates from '../templates/index';
+
 //import {AssetsCollection} from '../../models/index';
 const Blazy = require('blazy');
 
@@ -15,24 +18,25 @@ export interface FileListOptions extends CollectionViewOptions {
 }
 
 export const FileListEmptyView = View.extend({
-    className: 'assets-list-empty-view',
+    className: 'file-list-empty-view',
     template: 'No files uploaded yet.'
 })
 
-
 @attributes({
-    className: 'assets-list collection-mode',
+    //template: () => templates.list,
+    className: 'file-list collection-mode',
     childView: FileListItemView,
     emptyView: FileListEmptyView,
+    //childViewContainer: '.file-list-item-container',
     events: {
-        scroll: '_onSroll'
-    },
-
+        //scroll: '_onSroll'
+    }
 })
 export class FileListView extends CollectionView<HTMLDivElement> {
     private _current: View<HTMLDivElement>;
     private _blazy: any;
-    private _timer: number;
+    private _timer: NodeJS.Timer;
+    private _progress: IProgress;
     private index: number;
 
     public options: FileListOptions;
@@ -42,19 +46,20 @@ export class FileListView extends CollectionView<HTMLDivElement> {
         super(options);
         this.options = options||{};
         this.sort = false;
-
-        this._onSroll = throttle(bind(this._onSroll, this), 0);
         
-        this._initEvents();
+        this._onSroll = throttle(bind(this._onSroll, this), 0);
         this._initBlazy();
 
     }
+
+    onCollection(model) {
+        if (model) this._initEvents();
+    } 
 
     private _initEvents () {
         this.listenTo(this, 'childview:click', function (view, model) {
             if (this._current) removeClass(this._current.el, 'active');
             this._current = view
-
             addClass(view.el, 'active')
             this.trigger('selected', view, model);
         });
@@ -92,44 +97,16 @@ export class FileListView extends CollectionView<HTMLDivElement> {
                 if (elementInView(view.el, this.el)) {
                     this._blazy.load(view.$('img')[0]);
                 }
-                
             }, 100);
             
         });
 
-        var progress: Progress;
-        this.listenTo(this.collection, 'before:fetch', () => {
-            let loader = <HTMLElement>this.el.querySelector('.loader');
-            if (loader) return;
-            loader = document.createElement('div');
-            addClass(loader, 'progress');
-            this.el.appendChild(loader)
-            progress = new Progress({
-                size: 60,
-                lineWidth: 6,
-                el: loader
-            })
-            progress.render();
-            
-        });
-
-        this.listenTo(this.collection, 'fetch', () => {
-            let loader = this.el.querySelector('.progress');
-            if (loader) {
-                this.el.removeChild(loader);
-            }
-            if (progress) {
-                progress.destroy()
-            }
-        })
+        this.listenTo(this.collection, 'before:fetch', this._showLoaderView);
+        this.listenTo(this.collection, 'fetch', this._hideLoaderView);
 
         this.listenTo(this.collection, 'progress', (e:ProgressEvent) => {
-            if (!e.lengthComputable) {
-                return;
-            }
-
-            let pc = 100 / e.total * e.loaded;
-            if (progress) progress.setPercent(pc)
+            if (!e.lengthComputable) return;
+            if (this._progress) this._progress.setPercent(100 / e.total * e.loaded)
         })
         
     }
@@ -141,6 +118,23 @@ export class FileListView extends CollectionView<HTMLDivElement> {
             this._initBlazy();
         }
 
+    }
+
+    private _showLoaderView() {
+        if (this._progress) return;
+
+        this._progress = new Progress({
+            size: 60,
+            lineWidth: 6
+        });
+
+        this.el.appendChild(this._progress.render().el);
+        addClass(this._progress.el, 'loader');
+    }
+
+    private _hideLoaderView() {
+        if (!this._progress) return;
+        this._progress.remove().destroy();
     }
 
     private _onSroll(e) {
