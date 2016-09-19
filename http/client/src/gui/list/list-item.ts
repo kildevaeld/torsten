@@ -7,7 +7,7 @@ import {truncate} from 'orange';
 import {addClass, removeClass} from 'orange.dom';
 import templates from '../templates/index';
 import {FileInfoModel} from '../collection'
-
+import {getMimeIcon} from '../gallery/mimetypes';
 @attributes({
     template: () => templates['list-item'],
     tagName: 'div',
@@ -33,18 +33,17 @@ export class FileListItemView extends View<HTMLDivElement> {
         let model = this.model
 
         let isDir = model.get('is_dir');
-        let mime = model.get('mime') //.replace(/\//, '-')
-
-
         removeClass(this.ui['mime'], 'mime-unknown')
-        //mime = getMimeIcon(mime.replace(/\//, '-'));
-        if (!isDir) {
+        if (isDir) {
+            addClass(this.ui['mime'], 'mime-folder');
+        } else {
+            let mime = getMimeIcon(model.get('mime')); //model.get('mime').replace(/\//, '-')
             addClass(this.ui['mime'], mime);
         }
 
         this.ui['name'].textContent = truncate(model.get('name') || model.get('filename'), 25)
 
-        if (/^image\/.*/.test(mime)) {
+        if (/^image\/.*/.test(model.get('mime'))) {
             let img = new Image();
             img.src = "data:image/png;base64,R0lGODlhAQABAAAAACH5BAEAAAAALAAAAAABAAEAAAI="
             //img.setAttribute('data-src', `${url}?thumbnail=true`)

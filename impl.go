@@ -188,7 +188,6 @@ func (self *torsten) infoFromInterface(v interface{}, o GetOptions) (*FileInfo, 
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("STAT %v\n", stat)
 
 	return stat, nil
 }
@@ -213,6 +212,10 @@ func (self *torsten) Stat(pathOtId interface{}, o GetOptions) (*FileInfo, error)
 
 func (self *torsten) List(prefix string, options ListOptions, fn func(path string, node *FileInfo) error) error {
 	return self.meta.List(prefix, options, fn)
+}
+
+func (self *torsten) Count(path string) (int64, error) {
+	return self.meta.Count(path)
 }
 
 func (self *torsten) RegisterHook(hook Hook, fn HookFunc) {

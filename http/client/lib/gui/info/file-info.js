@@ -34,6 +34,8 @@ let FileInfoView = class FileInfoView extends views_1.View {
         ui.name.textContent = '';
         ui.mime.textContent = '';
         ui.size.textContent = '';
+        ui.download.textContent = '';
+        this.el.style.opacity = "0";
         return this;
     }
     _update_ui(model) {
@@ -46,6 +48,7 @@ let FileInfoView = class FileInfoView extends views_1.View {
         ui.download.textContent = model.get('name');
         let url = this.client.endpoint + model.fullPath + '?download=true';
         ui.download.setAttribute('href', url);
+        this.el.style.opacity = "1";
     }
 };
 FileInfoView = __decorate([

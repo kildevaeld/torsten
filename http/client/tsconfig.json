@@ -36,7 +36,8 @@
 
         "src/gui/gallery/index.ts",
         "src/gui/gallery/gallery.ts",
-
+        "src/gui/gallery/mimetypes.ts",
+        "src/gui/gallery/dropzone.ts",
 
         "src/gui/templates/index.ts"
 

@@ -47,6 +47,8 @@ export class FileInfoView extends View<HTMLDivElement> {
         ui.name.textContent = ''
         ui.mime.textContent = ''
         ui.size.textContent = ''
+        ui.download.textContent = ''
+        this.el.style.opacity = "0";
         return this
     }
 
@@ -61,6 +63,7 @@ export class FileInfoView extends View<HTMLDivElement> {
         
         let url = this.client.endpoint + model.fullPath + '?download=true';
         ui.download.setAttribute('href', url);
+        this.el.style.opacity = "1";
     }
 
 }

@@ -69,9 +69,17 @@ func (self *HttpServer) listen(s engine.Server, addr string) error {
 	self.echo.Use(NewWithNameAndLogger("torsten", self.log.WithField("prefix", "http")))
 	self.echo.Use(middleware.Recover())
 	self.echo.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-	//AllowOrigins: []string{"https://labstack.com", "https://labstack.net"},
-	//AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
+		//AllowOrigins: []string{"https://labstack.com", "https://labstack.net"},
+		AllowHeaders:  []string{echo.HeaderOrigin, echo.HeaderContentType, "Link", "Accept"},
+		ExposeHeaders: []string{"Link", "X-Total-Count", "Content-Length"},
 	}))
+
+	self.echo.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			c.Response().Header().Set("server", "torsten")
+			return next(c)
+		}
+	})
 
 	/*self.echo.Use(middleware.JWTWithConfig(middleware.JWTConfig{
 		SigningKey: []byte("secret"),

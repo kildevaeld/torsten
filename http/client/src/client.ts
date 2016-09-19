@@ -1,22 +1,24 @@
-import {TorstenClientOptions, CreateOptions, GetOptions, ListOptions, 
-    Requester, OpenOptions, IFileInfo, IClient} from './types';
+import {TorstenClientOptions, CreateOptions, GetOptions, ListOptions,
+    Requester, OpenOptions, IFileInfo, IClient, TorstenResponse} from './types';
 import {extend, isObject, IPromise} from 'orange';
 import {isString, isFormData, isReadableStream, isNode, isBuffer} from './utils';
 import {FileInfo} from './file-info';
 import {createError} from './error';
 
 import * as request from './request'
-import {HttpMethod} from 'orange.request';
+import {HttpMethod, Response} from 'orange.request';
 
 
 interface Request {
     mime?: string;
     headers?: any
     params?: any
-    data?: any
+    data?: any;
     size?: number;
     progress?: (e: ProgressEvent) => void;
 }
+
+
 
 function validateConfig(options: TorstenClientOptions) {
 
@@ -39,14 +41,14 @@ export class TorstenClient implements IClient {
         if (data == null) return Promise.reject<IFileInfo>(createError("no data"))
 
         let req: Request = extend({}, options);
-        
+
         let promise: IPromise<any>;
         if (isNode && isReadableStream(data)) {
             //promise = this._doStream(path, req);
         } else {
             promise = request.upload(this._toUrl(path), req, data);
         }
-       
+
         return promise.then( res => res.json() )
         .then( json => {
             if (json.message != "ok") {
@@ -57,15 +59,24 @@ export class TorstenClient implements IClient {
     }
 
     stat(path: string, options: GetOptions = {}): IPromise<IFileInfo> {
-      
+
         let url = this._toUrl(path);
         return request.request(HttpMethod.GET,url, {
             progress: options.progress,
             params: {stat: true}
         }).then( res => {
             return res.json<{data:IFileInfo}>();
-        }).then( i => new FileInfo(this, i.data))
+        }).then( i => new FileInfo(i.data))
 
+    }
+
+    statById(id:string, options: GetOptions = {}): IPromise<IFileInfo> {
+        return request.request(HttpMethod.GET, this.endpoint, {
+            progress:options.progress,
+            params: {stat: true, id: id}
+        }).then( res => {
+            return res.json<{data:IFileInfo}>();
+        }).then( i => new FileInfo(i.data))
     }
 
     list(path: string, options: ListOptions = {}): IPromise<IFileInfo[]> {
@@ -75,7 +86,7 @@ export class TorstenClient implements IClient {
             return res.json<{data:FileInfo[];message:string;}>();
         }).then( infos => {
             if (infos.message != 'ok') return [];
-            return infos.data.map( i => new FileInfo(this, i) );
+            return infos.data.map( i => new FileInfo(i) );
         })
     }
 
@@ -90,31 +101,29 @@ export class TorstenClient implements IClient {
                 }
 
                 if (isNode && options.stream) {
-                    let req = request.get(this._toUrl(path))
+                    /*let req = request.get(this._toUrl(path))
 
                     if (options.progress) {
                         req.on('progress', options.progress);
                     }
                     // if the pipe function is'nt called immediately
                     // request downloads the data to a buffer
-                    return req.pipe(require('./stream').stream());
+                    return req.pipe(require('./stream').stream());*/
                 }
 
                 return request.request(HttpMethod.GET, this._toUrl(path), r)
                 .then( r => r.blob())
-                
+
             });
     }
 
-    remove(path:string): IPromise<void> {
+    remove(path:string): IPromise<TorstenResponse> {
         let url = this._toUrl(path)
         return request.request(HttpMethod.DELETE, url, {})
-        .then( res => {
-            console.log(res)
-        })
+        .then( res => res.json())
     }
 
-   
+
 
     private _toUrl(path: string) {
         if (path.substr(0, 1) != "/") {

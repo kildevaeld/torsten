@@ -15,18 +15,21 @@ const views_1 = require('views');
 const orange_1 = require('orange');
 const orange_dom_1 = require('orange.dom');
 const index_1 = require('../templates/index');
+const mimetypes_1 = require('../gallery/mimetypes');
 let FileListItemView = class FileListItemView extends views_1.View {
     onRender() {
         let model = this.model;
         let isDir = model.get('is_dir');
-        let mime = model.get('mime'); //.replace(/\//, '-')
         orange_dom_1.removeClass(this.ui['mime'], 'mime-unknown');
-        //mime = getMimeIcon(mime.replace(/\//, '-'));
-        if (!isDir) {
+        if (isDir) {
+            orange_dom_1.addClass(this.ui['mime'], 'mime-folder');
+        }
+        else {
+            let mime = mimetypes_1.getMimeIcon(model.get('mime')); //model.get('mime').replace(/\//, '-')
             orange_dom_1.addClass(this.ui['mime'], mime);
         }
         this.ui['name'].textContent = orange_1.truncate(model.get('name') || model.get('filename'), 25);
-        if (/^image\/.*/.test(mime)) {
+        if (/^image\/.*/.test(model.get('mime'))) {
             let img = new Image();
             img.src = "data:image/png;base64,R0lGODlhAQABAAAAACH5BAEAAAAALAAAAAABAAEAAAI=";
             //img.setAttribute('data-src', `${url}?thumbnail=true`)

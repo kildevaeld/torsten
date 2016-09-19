@@ -118,8 +118,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }, {
 	        key: 'stat',
 	        value: function stat(path) {
-	            var _this = this;
-
 	            var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
 	            var url = this._toUrl(path);
@@ -129,14 +127,26 @@ return /******/ (function(modules) { // webpackBootstrap
 	            }).then(function (res) {
 	                return res.json();
 	            }).then(function (i) {
-	                return new file_info_1.FileInfo(_this, i.data);
+	                return new file_info_1.FileInfo(i.data);
+	            });
+	        }
+	    }, {
+	        key: 'statById',
+	        value: function statById(id) {
+	            var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+
+	            return request.request(orange_request_1.HttpMethod.GET, this.endpoint, {
+	                progress: options.progress,
+	                params: { stat: true, id: id }
+	            }).then(function (res) {
+	                return res.json();
+	            }).then(function (i) {
+	                return new file_info_1.FileInfo(i.data);
 	            });
 	        }
 	    }, {
 	        key: 'list',
 	        value: function list(path) {
-	            var _this2 = this;
-
 	            var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
 	            var req = request.request(orange_request_1.HttpMethod.GET, this._toUrl(path), options);
@@ -145,14 +155,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	            }).then(function (infos) {
 	                if (infos.message != 'ok') return [];
 	                return infos.data.map(function (i) {
-	                    return new file_info_1.FileInfo(_this2, i);
+	                    return new file_info_1.FileInfo(i);
 	                });
 	            });
 	        }
 	    }, {
 	        key: 'open',
 	        value: function open(path) {
-	            var _this3 = this;
+	            var _this = this;
 
 	            var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
 
@@ -162,16 +172,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	                    r.params = r.params || {};
 	                    r.params.thumbnail = true;
 	                }
-	                if (utils_1.isNode && options.stream) {
-	                    var req = request.get(_this3._toUrl(path));
-	                    if (options.progress) {
-	                        req.on('progress', options.progress);
-	                    }
-	                    // if the pipe function is'nt called immediately
-	                    // request downloads the data to a buffer
-	                    return req.pipe(__webpack_require__(18).stream());
-	                }
-	                return request.request(orange_request_1.HttpMethod.GET, _this3._toUrl(path), r).then(function (r) {
+	                if (utils_1.isNode && options.stream) {}
+	                return request.request(orange_request_1.HttpMethod.GET, _this._toUrl(path), r).then(function (r) {
 	                    return r.blob();
 	                });
 	            });
@@ -181,7 +183,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        value: function remove(path) {
 	            var url = this._toUrl(path);
 	            return request.request(orange_request_1.HttpMethod.DELETE, url, {}).then(function (res) {
-	                console.log(res);
+	                return res.json();
 	            });
 	        }
 	    }, {
@@ -1436,14 +1438,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	var props = ['name', 'mime', 'size', 'ctime', 'mtime', 'mode', 'gid', 'uid', 'meta', 'path', 'is_dir', 'hidden'];
 
 	var FileInfo = function () {
-	    function FileInfo(_client) {
+	    function FileInfo() {
 	        var _this = this;
 
-	        var attr = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
+	        var attr = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
 
 	        _classCallCheck(this, FileInfo);
 
-	        this._client = _client;
 	        props.forEach(function (m) {
 	            if (orange_1.has(attr, m)) {
 	                _this[m] = attr[m];
@@ -1459,16 +1460,8 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    _createClass(FileInfo, [{
 	        key: 'fullPath',
-	        value: function fullPath() {
+	        get: function get() {
 	            return this.path + this.name;
-	        }
-	    }, {
-	        key: 'url',
-	        value: function url() {}
-	    }, {
-	        key: 'open',
-	        value: function open() {
-	            return this._client.open(this.fullPath(), {});
 	        }
 	    }]);
 
@@ -2254,12 +2247,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	    return new HttpRequest(HttpMethod.HEAD, url);
 	}
 	exports.head = head;
-
-/***/ },
-/* 18 */
-/***/ function(module, exports) {
-
-	
 
 /***/ }
 /******/ ])

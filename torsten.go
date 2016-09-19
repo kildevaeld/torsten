@@ -69,7 +69,7 @@ type FileInfo struct {
 	Meta   MetaMap     `json:"meta,omitempty"`
 	Ctime  time.Time   `json:"ctime,omitempty"`
 	Mtime  time.Time   `json:"mtime,omitempty"`
-	IsDir  bool        `json:"is_dir,omitempty"`
+	IsDir  bool        `json:"is_dir"`
 	Path   string      `json:"path"`
 	Hidden bool        `json:"hidden"`
 }
@@ -121,14 +121,12 @@ type DataAdator interface {
 
 type MetaAdaptor interface {
 	Insert(path string, info *FileInfo) error
-	//Prepare(path string) error
-	//Finalize(path string, info *FileInfo) error
 	Update(path string, info *FileInfo) error
 	GetById(id uuid.UUID, info *FileInfo) error
 	Get(path string, options GetOptions) (*FileInfo, error)
 	List(prefix string, options ListOptions, fn func(path string, node *FileInfo) error) error
 	Remove(path string, options RemoveOptions) error
-	Clean(before time.Time) (int64, error)
+	Count(path string) (int64, error)
 }
 
 type Torsten interface {
@@ -144,6 +142,7 @@ type Torsten interface {
 	Stat(path interface{}, options GetOptions) (*FileInfo, error)
 	List(prefix string, options ListOptions, fn func(path string, node *FileInfo) error) error
 
+	Count(path string) (int64, error)
 	RegisterHook(hook Hook, fn HookFunc)
 	RegisterCreateHook(fn CreateHookFunc)
 }

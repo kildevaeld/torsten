@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -89,6 +91,7 @@ func (self *HttpServer) handleFiles(ctx echo.Context) error {
 	} else {
 		var stat *torsten.FileInfo
 		var err error
+
 		if idStr := ctx.QueryParam("id"); idStr != "" {
 			var id uuid.UUID
 			id, err = uuid.FromString(idStr)
@@ -104,12 +107,14 @@ func (self *HttpServer) handleFiles(ctx echo.Context) error {
 		if err != nil {
 			return notFoundOr(ctx, err, false)
 		}
+
 		if !stat.IsDir {
 			return self.handleFile(ctx, options, stat, path)
 		}
 
 		var files []torsten.FileInfo
-		err = self.torsten.List(path, self.getListOptions(ctx), func(path string, node *torsten.FileInfo) error {
+		o := self.getListOptions(ctx)
+		err = self.torsten.List(path, o, func(path string, node *torsten.FileInfo) error {
 			files = append(files, *node)
 			return nil
 		})
@@ -117,6 +122,9 @@ func (self *HttpServer) handleFiles(ctx echo.Context) error {
 		if err != nil {
 			return notFoundOr(ctx, err, true)
 		} else {
+
+			self.genLinks(ctx, o, path)
+
 			if len(files) == 0 {
 				files = []torsten.FileInfo{}
 			}
@@ -127,6 +135,52 @@ func (self *HttpServer) handleFiles(ctx echo.Context) error {
 		}
 	}
 
+	return nil
+}
+
+func (self *HttpServer) genLinks(ctx echo.Context, o torsten.ListOptions, path string) error {
+
+	count, err := self.torsten.Count(path)
+	if err != nil {
+		return err
+	}
+
+	pages := int64(math.Ceil(float64(count) / float64(o.Limit)))
+
+	links := make(map[string]int)
+
+	page := (o.Offset / o.Limit) + 1
+	if page == 0 {
+		page = 1
+	}
+	if page > 1 {
+		links["prev"] = int(page - 1)
+	}
+
+	links["first"] = 1
+	links["last"] = int(pages)
+	if page < pages {
+		links["next"] = int(page + 1)
+	}
+
+	uri := ctx.Request().URL()
+	u := url.URL{
+		Scheme:   ctx.Request().Scheme(),
+		Path:     uri.Path(),
+		Host:     ctx.Request().Host(),
+		RawQuery: uri.QueryString(),
+	}
+
+	var out []string
+	for k, v := range links {
+		q := u.Query()
+		q.Set("page", fmt.Sprintf("%d", v))
+		u.RawQuery = q.Encode()
+		out = append(out, fmt.Sprintf(`<%s>; rel="%s"`, u.String(), k))
+	}
+
+	ctx.Response().Header().Set("link", strings.Join(out, ", "))
+	ctx.Response().Header().Set("X-Total-Count", fmt.Sprintf("%d", count))
 	return nil
 }
 
@@ -160,13 +214,32 @@ func (self *HttpServer) getCreateOptions(ctx echo.Context) (o torsten.CreateOpti
 func (self HttpServer) getListOptions(ctx echo.Context) (o torsten.ListOptions) {
 
 	//user := ctx.Get("user").(*jwt.Token)
-
+	var (
+		page  int
+		limit int
+		err   error
+	)
 	o.Uid = uuid.NewV4()
 	o.Gid = []uuid.UUID{uuid.NewV4()}
+
+	o.Limit = 50
+	o.Offset = 0
 
 	if isTrueRegex.Match([]byte(ctx.FormValue("show_hidden"))) {
 		o.Hidden = true
 	}
+
+	if limit, err = strconv.Atoi("limit"); err == nil && limit > 0 {
+		o.Limit = int64(limit)
+	}
+
+	if page, err = strconv.Atoi(ctx.QueryParam("page")); err == nil {
+		if page == 0 {
+			page = 1
+		}
+		o.Offset = int64(page-1) * o.Limit
+	}
+
 	return o
 }
 

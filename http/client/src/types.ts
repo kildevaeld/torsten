@@ -1,12 +1,18 @@
 import {IPromise} from 'orange';
 import {HttpMethod} from 'orange.request';
 
+export interface TorstenResponse {
+    message: string;
+    data?: any;
+}
+
 export interface IClient {
     endpoint: string;
     create(path:string, data:any, options:CreateOptions): IPromise<IFileInfo>;
     open(path: string, options:OpenOptions): IPromise<Blob>;
     stat(path:string, options?:GetOptions): IPromise<IFileInfo>;
     list(path:string, options?:ListOptions): IPromise<IFileInfo[]>;
+    remove(path: string, options?: RemoveOptions): IPromise<TorstenResponse>
 }
 
 export interface Request {
@@ -54,8 +60,10 @@ export interface ListOptions {
     page?:number;
     limit?:number;
     progress?: (e:ProgressEvent) => void
+    raw?: boolean;
 }
 
+export interface RemoveOptions {}
 
 export interface TorstenClientOptions {
     endpoint: string; 

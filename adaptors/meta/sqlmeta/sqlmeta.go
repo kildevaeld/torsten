@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/Sirupsen/logrus"
@@ -316,6 +315,8 @@ func (self *sqlmeta) List(prefix string, options torsten.ListOptions, fn func(pa
 		builder = builder.Where("fn.path = ?", prefix)
 	}
 
+	builder = builder.Offset(uint64(options.Offset)).Limit(uint64(options.Limit))
+
 	builder = builder.Where(sq.Or{
 		sq.And{
 			sq.Or{sq.Eq{FileTable + ".uid": options.Uid}, sq.Eq{"file_info.gid": options.Gid}},
@@ -337,6 +338,7 @@ func (self *sqlmeta) List(prefix string, options torsten.ListOptions, fn func(pa
 				return notFoundOr(err)
 			}
 			node.Path = prefix
+
 			file, _ := node.ToInfo()
 			if err = fn(node.Path, file); err != nil {
 				return err
@@ -453,9 +455,23 @@ func (self *sqlmeta) removeNodesIn(path string, o torsten.RemoveOptions, tx *sql
 	return out, paths, nil
 }
 
-func (self *sqlmeta) Clean(before time.Time) (int64, error) {
+func (self *sqlmeta) Count(path string) (int64, error) {
 
-	return 0, nil
+	sqli, args, err := sq.Select("count(*)").From(FileTable).
+		Join(fmt.Sprintf("%s fn ON fn.id = %s.node_id", FileNodeTable, FileTable)).
+		Where(sq.Eq{"fn.path": path}).ToSql()
+
+	if err != nil {
+		return -1, err
+	}
+
+	var count int64
+	if err = self.db.Get(&count, sqli, args...); err != nil {
+		return -1, err
+	}
+
+	return count, nil
+
 }
 
 func New(options Options) (torsten.MetaAdaptor, error) {

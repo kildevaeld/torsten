@@ -12,7 +12,7 @@ const views_1 = require('views');
 const orange_dom_1 = require('orange.dom');
 const orange_1 = require('orange');
 const list_item_1 = require('./list-item');
-const progress_1 = require('./progress');
+const circular_progress_1 = require('./circular-progress');
 //import {AssetsCollection} from '../../models/index';
 const Blazy = require('blazy');
 exports.FileListEmptyView = views_1.View.extend({
@@ -30,6 +30,9 @@ let FileListView = class FileListView extends views_1.CollectionView {
     onCollection(model) {
         if (model)
             this._initEvents();
+        if (model) {
+            model.state.limit = 10;
+        }
     }
     _initEvents() {
         this.listenTo(this, 'childview:click', function (view, model) {
@@ -72,7 +75,7 @@ let FileListView = class FileListView extends views_1.CollectionView {
         });
         this.listenTo(this.collection, 'before:fetch', this._showLoaderView);
         this.listenTo(this.collection, 'fetch', this._hideLoaderView);
-        this.listenTo(this.collection, 'progress', (e) => {
+        this.listenTo(this.collection, 'fetch:progress', (e) => {
             if (!e.lengthComputable)
                 return;
             if (this._progress)
@@ -87,10 +90,18 @@ let FileListView = class FileListView extends views_1.CollectionView {
             this._initBlazy();
         }
     }
+    onRenderChild(view, index) {
+        if (view.model.get('is_dir') && !this.options.showDirectories) {
+            view.el.style.display = 'none';
+        }
+        else {
+            view.el.style.opacity = 'block';
+        }
+    }
     _showLoaderView() {
         if (this._progress)
             return;
-        this._progress = new progress_1.Progress({
+        this._progress = new circular_progress_1.Progress({
             size: 60,
             lineWidth: 6
         });
@@ -121,7 +132,11 @@ let FileListView = class FileListView extends views_1.CollectionView {
         if (el.scrollTop < (el.scrollHeight - el.clientHeight) - el.clientHeight) {
         }
         else if (this.collection.hasNext()) {
-            this.collection.getNextPage();
+            this.collection.getNextPage({
+                params: {
+                    show_hidden: true
+                }
+            });
         }
     }
     _initBlazy() {
@@ -164,7 +179,9 @@ FileListView = __decorate([
         childView: list_item_1.FileListItemView,
         emptyView: exports.FileListEmptyView,
         //childViewContainer: '.file-list-item-container',
-        events: {}
+        events: {
+            scroll: '_onSroll',
+        }
     }), 
     __metadata('design:paramtypes', [Object])
 ], FileListView);

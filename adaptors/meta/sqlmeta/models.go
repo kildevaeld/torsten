@@ -138,6 +138,7 @@ func (self File) ToInfo() (*torsten.FileInfo, error) {
 		Meta:   self.Meta,
 		Hidden: self.Hidden,
 		Path:   self.Path,
+		IsDir:  false,
 	}, nil
 }
 
@@ -160,6 +161,7 @@ func (self File) ToInfoFile(v *torsten.FileInfo) error {
 		Meta:   self.Meta,
 		Hidden: self.Hidden,
 		Path:   self.Path,
+		IsDir:  false,
 	}
 
 	return nil
