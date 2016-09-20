@@ -1,4 +1,4 @@
-//go:generate go-bindata -nomemcopy -nometadata -pkg sqlmeta -o schema.go schemas/
+//go:generate go-bindata -nomemcopy -nometadata -nocompress -pkg sqlmeta -o schema.go schemas/
 package sqlmeta
 
 import (
@@ -51,7 +51,15 @@ func (self *sqlmeta) init() error {
 		return errors.New("Driver not suppported: " + self.db.DriverName())
 	}
 
-	self.db.MustExec(string(MustAsset(asset)))
+	// The mysql driver does not support multiple statements
+	split := strings.Split(string(MustAsset(asset)), ";\n")
+	for _, st := range split {
+		st = strings.TrimSpace(st)
+		if st == "" {
+			continue
+		}
+		self.db.MustExec(st)
+	}
 
 	return nil
 }
@@ -494,6 +502,8 @@ func New(options Options) (torsten.MetaAdaptor, error) {
 	}
 
 	m := &sqlmeta{db, logrus.New()}
+
+	m.log.WithField("prefix", "torsten:meta").Infof("Using: %s, options: %s", options.Driver, options.Options)
 
 	if options.Debug {
 		m.log.Out = os.Stdout

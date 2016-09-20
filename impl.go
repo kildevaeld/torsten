@@ -20,6 +20,7 @@ type torsten struct {
 	createHooks []CreateHookFunc
 	lock        sync.RWMutex
 	states      StateLock
+	log         logrus.FieldLogger
 }
 
 func (self *torsten) Create(path string, opts CreateOptions) (io.WriteCloser, error) {
@@ -269,7 +270,10 @@ func (self *torsten) runHook(hook Hook, path string, info *FileInfo) error {
 }
 
 func New(f filestore.Store, m MetaAdaptor) Torsten {
+	return NewWithLogger(f, m, logrus.New())
+}
 
+func NewWithLogger(f filestore.Store, m MetaAdaptor, logger logrus.FieldLogger) Torsten {
 	l := &MemoryLock{locks: make(map[Lock]State)}
 
 	t := &torsten{
@@ -277,6 +281,7 @@ func New(f filestore.Store, m MetaAdaptor) Torsten {
 		meta:   m,
 		hooks:  make(map[Hook][]HookFunc),
 		states: l,
+		log:    logger,
 	}
 
 	return t

@@ -7,10 +7,12 @@ import (
 	"os"
 
 	"github.com/Sirupsen/logrus"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/kildevaeld/filestore"
 	_ "github.com/kildevaeld/filestore/memory"
 	"github.com/kildevaeld/torsten"
 	"github.com/kildevaeld/torsten/adaptors/meta/sqlmeta"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/viper"
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 )

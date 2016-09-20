@@ -1,9 +1,0 @@
-{
-  "name": "torsten-client",
-  "dependencies": {},
-  "globalDependencies": {
-    "cropperjs": "registry:dt/cropperjs#0.0.0+20160724062638",
-    "node": "registry:dt/node#6.0.0+20160915134512",
-    "superagent": "registry:dt/superagent#2.0.0+20160906143408"
-  }
-}

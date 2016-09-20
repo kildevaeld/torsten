@@ -34,15 +34,3 @@ CREATE TABLE IF NOT EXISTS `file_info` (
 
 CREATE INDEX IF NOT EXISTS file_info_name_index ON file_info(`name`);
 
-/*CREATE TABLE IF NOT EXISTS `file_status` (
-    `path` varchar(255) NOT NULL,
-    `status` varchar(20) NOT NULL DEFAULT 'creating',
-    `ctime` real DEFAULT (datetime('now', 'localtime')),
-    PRIMARY KEY(`path`)
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS file_status_path_index ON `file_status`(`path`);
-*/
-
-
-

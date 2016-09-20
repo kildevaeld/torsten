@@ -13,7 +13,6 @@ import (
 	"github.com/labstack/echo/engine"
 	"github.com/labstack/echo/engine/fasthttp"
 	"github.com/labstack/echo/middleware"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 var octetStream = "application/octet-stream"
@@ -28,7 +27,7 @@ type Options struct {
 type HttpServer struct {
 	echo    *echo.Echo
 	torsten torsten.Torsten
-	log     *logrus.Logger
+	log     logrus.FieldLogger
 	thumb   *thumbnail.Thumbnail
 	o       Options
 }
@@ -46,7 +45,7 @@ func notFoundOr(ctx echo.Context, err error, json bool) error {
 
 	if json {
 		return ctx.JSON(status, dict.Map{
-			"message": err,
+			"message": err.Error(),
 		})
 	}
 	return ctx.String(status, err.Error())
@@ -102,7 +101,7 @@ func New(t torsten.Torsten, o Options) *HttpServer {
 	return NewWithLogger(t, logrus.New(), o)
 }
 
-func NewWithLogger(t torsten.Torsten, l *logrus.Logger, o Options) *HttpServer {
+func NewWithLogger(t torsten.Torsten, l logrus.FieldLogger, o Options) *HttpServer {
 	thumb := thumbnail.NewThumbnailer(t)
 
 	return &HttpServer{

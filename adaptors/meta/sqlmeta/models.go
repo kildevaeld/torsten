@@ -106,8 +106,8 @@ type File struct {
 	Name   string          `db:"name"`
 	Size   int64           `db:"size"`
 	Mode   Bitmask         `db:"perms"`
-	Ctime  time.Time       `db:"ctime"`
-	Mtime  time.Time       `db:"mtime"`
+	Ctime  NullTime        `db:"ctime"`
+	Mtime  NullTime        `db:"mtime"`
 	Gid    InfoID          `db:"gid"`
 	Uid    InfoID          `db:"uid"`
 	Mime   string          `db:"mime_type"`
@@ -133,8 +133,8 @@ func (self File) ToInfo() (*torsten.FileInfo, error) {
 		Uid:    self.Uid.Id,
 		Mime:   self.Mime,
 		Sha1:   self.Sha1,
-		Ctime:  self.Ctime,
-		Mtime:  self.Mtime,
+		Ctime:  self.Ctime.Time,
+		Mtime:  self.Mtime.Time,
 		Meta:   self.Meta,
 		Hidden: self.Hidden,
 		Path:   self.Path,
@@ -156,8 +156,8 @@ func (self File) ToInfoFile(v *torsten.FileInfo) error {
 		Uid:    self.Uid.Id,
 		Mime:   self.Mime,
 		Sha1:   self.Sha1,
-		Ctime:  self.Ctime,
-		Mtime:  self.Mtime,
+		Ctime:  self.Ctime.Time,
+		Mtime:  self.Mtime.Time,
 		Meta:   self.Meta,
 		Hidden: self.Hidden,
 		Path:   self.Path,

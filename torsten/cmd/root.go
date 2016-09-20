@@ -18,11 +18,13 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 var cfgFile string
+var logger *logrus.Logger
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
@@ -60,14 +62,20 @@ func init() {
 func initConfig() {
 	if cfgFile != "" { // enable ability to specify config file via flag
 		viper.SetConfigFile(cfgFile)
+	} else {
+		viper.SetConfigName(".torsten") // name of config file (without extension)
+		viper.AddConfigPath("$HOME")    // adding home directory as first search path
 	}
 
-	viper.SetConfigName(".torsten") // name of config file (without extension)
-	viper.AddConfigPath("$HOME")    // adding home directory as first search path
-	viper.AutomaticEnv()            // read in environment variables that match
+	logger = logrus.New()
+
+	///viper.AutomaticEnv()            // read in environment variables that match
+	//viper.SetConfigType("json")
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
+		logger.Debugf("Using config file:", viper.ConfigFileUsed())
+	} else {
+
 	}
 }
