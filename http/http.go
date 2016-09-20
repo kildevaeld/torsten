@@ -64,7 +64,7 @@ func (self *HttpServer) Listen(addr string) error {
 }
 
 func (self *HttpServer) listen(s engine.Server, addr string) error {
-	//self.echo.SetDebug(true)
+	self.echo.SetDebug(true)
 
 	self.echo.Use(NewWithNameAndLogger("torsten", self.log.WithField("prefix", "http")))
 	self.echo.Use(middleware.Recover())

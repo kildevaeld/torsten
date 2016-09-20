@@ -1,13 +1,13 @@
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
-		module.exports = factory(require("collection"), require("orange"), require(undefined), require("views"));
+		module.exports = factory(require("collection"), require("orange"), require(undefined), require("views"), require("blazy"), require("cropperjs"));
 	else if(typeof define === 'function' && define.amd)
-		define(["collection", "orange", , "views"], factory);
+		define(["collection", "orange", , "views", "blazy", "cropperjs"], factory);
 	else if(typeof exports === 'object')
-		exports["views"] = factory(require("collection"), require("orange"), require(undefined), require("views"));
+		exports["views"] = factory(require("collection"), require("orange"), require(undefined), require("views"), require("blazy"), require("cropperjs"));
 	else
-		root["torsten"] = root["torsten"] || {}, root["torsten"]["views"] = factory(root["collection"], root["orange"], root[undefined], root["views"]);
-})(this, function(__WEBPACK_EXTERNAL_MODULE_2__, __WEBPACK_EXTERNAL_MODULE_5__, __WEBPACK_EXTERNAL_MODULE_7__, __WEBPACK_EXTERNAL_MODULE_10__) {
+		root["torsten"] = root["torsten"] || {}, root["torsten"]["views"] = factory(root["collection"], root["orange"], root[undefined], root["views"], root["blazy"], root["cropperjs"]);
+})(this, function(__WEBPACK_EXTERNAL_MODULE_2__, __WEBPACK_EXTERNAL_MODULE_5__, __WEBPACK_EXTERNAL_MODULE_7__, __WEBPACK_EXTERNAL_MODULE_10__, __WEBPACK_EXTERNAL_MODULE_19__, __WEBPACK_EXTERNAL_MODULE_31__) {
 return /******/ (function(modules) { // webpackBootstrap
 /******/ 	// The module cache
 /******/ 	var installedModules = {};
@@ -64,6 +64,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	__export(__webpack_require__(1));
 	__export(__webpack_require__(8));
 	__export(__webpack_require__(21));
+	__export(__webpack_require__(26));
 
 /***/ },
 /* 1 */
@@ -663,13 +664,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	            this.listenTo(this, 'childview:remove', function (view, _ref) {
 	                var model = _ref.model;
 
-	                if (this.options.deleteable === true) {
-	                    var remove = true;
+	                this.trigger('remove', view, model);
+	                /*if (this.options.deleteable === true) {
+	                    let remove = true;
 	                    if (model.has('deleteable')) {
 	                        remove = !!model.get('deleteable');
 	                    }
 	                    if (remove) model.remove();
-	                } else {}
+	                } else {
+	                    
+	                }*/
 	            });
 	            this.listenTo(this, 'childview:image', function (view) {
 	                var _this2 = this;
@@ -1506,7 +1510,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    tagName: 'div',
 	    className: 'file-list-item',
 	    ui: {
-	        remove: '.file-list-item.close-button',
+	        remove: '.file-list-item .close-button',
 	        name: '.name',
 	        mime: '.mime'
 	    },
@@ -1803,332 +1807,9 @@ return /******/ (function(modules) { // webpackBootstrap
 
 /***/ },
 /* 19 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ function(module, exports) {
 
-	var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_RESULT__;'use strict';
-
-	var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; };
-
-	/*!
-	  hey, [be]Lazy.js - v1.6.2 - 2016.05.09
-	  A fast, small and dependency free lazy load script (https://github.com/dinbror/blazy)
-	  (c) Bjoern Klinggaard - @bklinggaard - http://dinbror.dk/blazy
-	*/
-	;
-	(function (root, blazy) {
-	    if (true) {
-	        // AMD. Register bLazy as an anonymous module
-	        !(__WEBPACK_AMD_DEFINE_FACTORY__ = (blazy), __WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ? (__WEBPACK_AMD_DEFINE_FACTORY__.call(exports, __webpack_require__, exports, module)) : __WEBPACK_AMD_DEFINE_FACTORY__), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
-	    } else if ((typeof exports === 'undefined' ? 'undefined' : _typeof(exports)) === 'object') {
-	        // Node. Does not work with strict CommonJS, but
-	        // only CommonJS-like environments that support module.exports,
-	        // like Node.
-	        module.exports = blazy();
-	    } else {
-	        // Browser globals. Register bLazy on window
-	        root.Blazy = blazy();
-	    }
-	})(undefined, function () {
-	    'use strict';
-
-	    //private vars
-
-	    var _source,
-	        _viewport,
-	        _isRetina,
-	        _attrSrc = 'src',
-	        _attrSrcset = 'srcset';
-
-	    // constructor
-	    return function Blazy(options) {
-	        //IE7- fallback for missing querySelectorAll support
-	        if (!document.querySelectorAll) {
-	            var s = document.createStyleSheet();
-	            document.querySelectorAll = function (r, c, i, j, a) {
-	                a = document.all, c = [], r = r.replace(/\[for\b/gi, '[htmlFor').split(',');
-	                for (i = r.length; i--;) {
-	                    s.addRule(r[i], 'k:v');
-	                    for (j = a.length; j--;) {
-	                        a[j].currentStyle.k && c.push(a[j]);
-	                    }s.removeRule(0);
-	                }
-	                return c;
-	            };
-	        }
-
-	        //options and helper vars
-	        var scope = this;
-	        var util = scope._util = {};
-	        util.elements = [];
-	        util.destroyed = true;
-	        scope.options = options || {};
-	        scope.options.error = scope.options.error || false;
-	        scope.options.offset = scope.options.offset || 100;
-	        scope.options.success = scope.options.success || false;
-	        scope.options.selector = scope.options.selector || '.b-lazy';
-	        scope.options.separator = scope.options.separator || '|';
-	        scope.options.container = scope.options.container ? document.querySelectorAll(scope.options.container) : false;
-	        scope.options.errorClass = scope.options.errorClass || 'b-error';
-	        scope.options.breakpoints = scope.options.breakpoints || false; // obsolete
-	        scope.options.loadInvisible = scope.options.loadInvisible || false;
-	        scope.options.successClass = scope.options.successClass || 'b-loaded';
-	        scope.options.validateDelay = scope.options.validateDelay || 25;
-	        scope.options.saveViewportOffsetDelay = scope.options.saveViewportOffsetDelay || 50;
-	        scope.options.srcset = scope.options.srcset || 'data-srcset';
-	        scope.options.src = _source = scope.options.src || 'data-src';
-	        _isRetina = window.devicePixelRatio > 1;
-	        _viewport = {};
-	        _viewport.top = 0 - scope.options.offset;
-	        _viewport.left = 0 - scope.options.offset;
-
-	        /* public functions
-	         ************************************/
-	        scope.revalidate = function () {
-	            initialize(this);
-	        };
-	        scope.load = function (elements, force) {
-	            var opt = this.options;
-	            if (elements.length === undefined) {
-	                loadElement(elements, force, opt);
-	            } else {
-	                each(elements, function (element) {
-	                    loadElement(element, force, opt);
-	                });
-	            }
-	        };
-	        scope.destroy = function () {
-	            var self = this;
-	            var util = self._util;
-	            if (self.options.container) {
-	                each(self.options.container, function (object) {
-	                    unbindEvent(object, 'scroll', util.validateT);
-	                });
-	            }
-	            unbindEvent(window, 'scroll', util.validateT);
-	            unbindEvent(window, 'resize', util.validateT);
-	            unbindEvent(window, 'resize', util.saveViewportOffsetT);
-	            util.count = 0;
-	            util.elements.length = 0;
-	            util.destroyed = true;
-	        };
-
-	        //throttle, ensures that we don't call the functions too often
-	        util.validateT = throttle(function () {
-	            validate(scope);
-	        }, scope.options.validateDelay, scope);
-	        util.saveViewportOffsetT = throttle(function () {
-	            saveViewportOffset(scope.options.offset);
-	        }, scope.options.saveViewportOffsetDelay, scope);
-	        saveViewportOffset(scope.options.offset);
-
-	        //handle multi-served image src (obsolete)
-	        each(scope.options.breakpoints, function (object) {
-	            if (object.width >= window.screen.width) {
-	                _source = object.src;
-	                return false;
-	            }
-	        });
-
-	        // start lazy load
-	        setTimeout(function () {
-	            initialize(scope);
-	        }); // "dom ready" fix
-	    };
-
-	    /* Private helper functions
-	     ************************************/
-	    function initialize(self) {
-	        var util = self._util;
-	        // First we create an array of elements to lazy load
-	        util.elements = toArray(self.options.selector);
-	        util.count = util.elements.length;
-	        // Then we bind resize and scroll events if not already binded
-	        if (util.destroyed) {
-	            util.destroyed = false;
-	            if (self.options.container) {
-	                each(self.options.container, function (object) {
-	                    bindEvent(object, 'scroll', util.validateT);
-	                });
-	            }
-	            bindEvent(window, 'resize', util.saveViewportOffsetT);
-	            bindEvent(window, 'resize', util.validateT);
-	            bindEvent(window, 'scroll', util.validateT);
-	        }
-	        // And finally, we start to lazy load.
-	        validate(self);
-	    }
-
-	    function validate(self) {
-	        var util = self._util;
-	        for (var i = 0; i < util.count; i++) {
-	            var element = util.elements[i];
-	            if (elementInView(element) || hasClass(element, self.options.successClass)) {
-	                self.load(element);
-	                util.elements.splice(i, 1);
-	                util.count--;
-	                i--;
-	            }
-	        }
-	        if (util.count === 0) {
-	            self.destroy();
-	        }
-	    }
-
-	    function elementInView(ele) {
-	        var rect = ele.getBoundingClientRect();
-	        return (
-	            // Intersection
-	            rect.right >= _viewport.left && rect.bottom >= _viewport.top && rect.left <= _viewport.right && rect.top <= _viewport.bottom
-	        );
-	    }
-
-	    function loadElement(ele, force, options) {
-	        // if element is visible, not loaded or forced
-	        if (!hasClass(ele, options.successClass) && (force || options.loadInvisible || ele.offsetWidth > 0 && ele.offsetHeight > 0)) {
-	            var dataSrc = ele.getAttribute(_source) || ele.getAttribute(options.src); // fallback to default 'data-src'
-	            if (dataSrc) {
-	                var dataSrcSplitted = dataSrc.split(options.separator);
-	                var src = dataSrcSplitted[_isRetina && dataSrcSplitted.length > 1 ? 1 : 0];
-	                var isImage = equal(ele, 'img');
-	                // Image or background image
-	                if (isImage || ele.src === undefined) {
-	                    var img = new Image();
-	                    // using EventListener instead of onerror and onload
-	                    // due to bug introduced in chrome v50 
-	                    // (https://productforums.google.com/forum/#!topic/chrome/p51Lk7vnP2o)
-	                    var onErrorHandler = function onErrorHandler() {
-	                        if (options.error) options.error(ele, "invalid");
-	                        addClass(ele, options.errorClass);
-	                        unbindEvent(img, 'error', onErrorHandler);
-	                        unbindEvent(img, 'load', onLoadHandler);
-	                    };
-	                    var onLoadHandler = function onLoadHandler() {
-	                        // Is element an image
-	                        if (isImage) {
-	                            setSrc(ele, src); //src
-	                            handleSource(ele, _attrSrcset, options.srcset); //srcset
-	                            //picture element
-	                            var parent = ele.parentNode;
-	                            if (parent && equal(parent, 'picture')) {
-	                                each(parent.getElementsByTagName('source'), function (source) {
-	                                    handleSource(source, _attrSrcset, options.srcset);
-	                                });
-	                            }
-	                            // or background-image
-	                        } else {
-	                            ele.style.backgroundImage = 'url("' + src + '")';
-	                        }
-	                        itemLoaded(ele, options);
-	                        unbindEvent(img, 'load', onLoadHandler);
-	                        unbindEvent(img, 'error', onErrorHandler);
-	                    };
-	                    bindEvent(img, 'error', onErrorHandler);
-	                    bindEvent(img, 'load', onLoadHandler);
-	                    setSrc(img, src); //preload
-	                } else {
-	                    // An item with src like iframe, unity, simpelvideo etc
-	                    setSrc(ele, src);
-	                    itemLoaded(ele, options);
-	                }
-	            } else {
-	                // video with child source
-	                if (equal(ele, 'video')) {
-	                    each(ele.getElementsByTagName('source'), function (source) {
-	                        handleSource(source, _attrSrc, options.src);
-	                    });
-	                    ele.load();
-	                    itemLoaded(ele, options);
-	                } else {
-	                    if (options.error) options.error(ele, "missing");
-	                    addClass(ele, options.errorClass);
-	                }
-	            }
-	        }
-	    }
-
-	    function itemLoaded(ele, options) {
-	        addClass(ele, options.successClass);
-	        if (options.success) options.success(ele);
-	        // cleanup markup, remove data source attributes
-	        ele.removeAttribute(options.src);
-	        each(options.breakpoints, function (object) {
-	            ele.removeAttribute(object.src);
-	        });
-	    }
-
-	    function setSrc(ele, src) {
-	        ele[_attrSrc] = src;
-	    }
-
-	    function handleSource(ele, attr, dataAttr) {
-	        var dataSrc = ele.getAttribute(dataAttr);
-	        if (dataSrc) {
-	            ele[attr] = dataSrc;
-	            ele.removeAttribute(dataAttr);
-	        }
-	    }
-
-	    function equal(ele, str) {
-	        return ele.nodeName.toLowerCase() === str;
-	    }
-
-	    function hasClass(ele, className) {
-	        return (' ' + ele.className + ' ').indexOf(' ' + className + ' ') !== -1;
-	    }
-
-	    function addClass(ele, className) {
-	        if (!hasClass(ele, className)) {
-	            ele.className += ' ' + className;
-	        }
-	    }
-
-	    function toArray(selector) {
-	        var array = [];
-	        var nodelist = document.querySelectorAll(selector);
-	        for (var i = nodelist.length; i--; array.unshift(nodelist[i])) {}
-	        return array;
-	    }
-
-	    function saveViewportOffset(offset) {
-	        _viewport.bottom = (window.innerHeight || document.documentElement.clientHeight) + offset;
-	        _viewport.right = (window.innerWidth || document.documentElement.clientWidth) + offset;
-	    }
-
-	    function bindEvent(ele, type, fn) {
-	        if (ele.attachEvent) {
-	            ele.attachEvent && ele.attachEvent('on' + type, fn);
-	        } else {
-	            ele.addEventListener(type, fn, false);
-	        }
-	    }
-
-	    function unbindEvent(ele, type, fn) {
-	        if (ele.detachEvent) {
-	            ele.detachEvent && ele.detachEvent('on' + type, fn);
-	        } else {
-	            ele.removeEventListener(type, fn, false);
-	        }
-	    }
-
-	    function each(object, fn) {
-	        if (object && fn) {
-	            var l = object.length;
-	            for (var i = 0; i < l && fn(object[i], i) !== false; i++) {}
-	        }
-	    }
-
-	    function throttle(fn, minDelay, scope) {
-	        var lastCall = 0;
-	        return function () {
-	            var now = +new Date();
-	            if (now - lastCall < minDelay) {
-	                return;
-	            }
-	            lastCall = now;
-	            fn.apply(scope, arguments);
-	        };
-	    }
-	});
+	module.exports = __WEBPACK_EXTERNAL_MODULE_19__;
 
 /***/ },
 /* 20 */
@@ -2335,6 +2016,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	                if (res.message === 'ok') {
 	                    model.remove();
 	                }
+	                console.log(res);
 	            });
 	        }
 	    }, {
@@ -2446,6 +2128,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 	var views_1 = __webpack_require__(10);
 	var index_1 = __webpack_require__(16);
+	var orange_1 = __webpack_require__(5);
 	var FileInfoView = function (_views_1$View) {
 	    _inherits(FileInfoView, _views_1$View);
 
@@ -2492,7 +2175,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	            var ui = this.ui;
 	            ui.name.textContent = model.get('name');
 	            ui.mime.textContent = model.get('mime');
-	            ui.size.textContent = model.get('size');
+	            ui.size.textContent = orange_1.humanFileSize(model.get('size'));
 	            ui.download.textContent = model.get('name');
 	            var url = this.client.endpoint + model.fullPath + '?download=true';
 	            ui.download.setAttribute('href', url);
@@ -2592,6 +2275,434 @@ return /******/ (function(modules) { // webpackBootstrap
 	    dragover: '_onDragEnter'
 	}), __metadata('design:paramtypes', [Object])], DropZone);
 	exports.DropZone = DropZone;
+
+/***/ },
+/* 26 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+
+	function __export(m) {
+	    for (var p in m) {
+	        if (!exports.hasOwnProperty(p)) exports[p] = m[p];
+	    }
+	}
+	__export(__webpack_require__(27));
+	__export(__webpack_require__(30));
+	__export(__webpack_require__(28));
+
+/***/ },
+/* 27 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; };
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+	var __decorate = undefined && undefined.__decorate || function (decorators, target, key, desc) {
+	    var c = arguments.length,
+	        r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc,
+	        d;
+	    if ((typeof Reflect === "undefined" ? "undefined" : _typeof(Reflect)) === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);else for (var i = decorators.length - 1; i >= 0; i--) {
+	        if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+	    }return c > 3 && r && Object.defineProperty(target, key, r), r;
+	};
+	var __metadata = undefined && undefined.__metadata || function (k, v) {
+	    if ((typeof Reflect === "undefined" ? "undefined" : _typeof(Reflect)) === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+	};
+	var views_1 = __webpack_require__(10);
+	var types_1 = __webpack_require__(28);
+	var utils_1 = __webpack_require__(29);
+	var CropPreView = function (_views_1$View) {
+	    _inherits(CropPreView, _views_1$View);
+
+	    function CropPreView() {
+	        var options = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
+	        _classCallCheck(this, CropPreView);
+
+	        var _this = _possibleConstructorReturn(this, (CropPreView.__proto__ || Object.getPrototypeOf(CropPreView)).call(this, options));
+
+	        _this.options = options;
+	        return _this;
+	    }
+
+	    _createClass(CropPreView, [{
+	        key: "render",
+	        value: function render() {
+	            this.triggerMethod('before:render');
+	            this.undelegateEvents();
+	            var image = this.el.querySelector('img');
+	            if (image == null) {
+	                image = document.createElement('img');
+	                this.el.appendChild(image);
+	            }
+	            this.delegateEvents();
+	            this.triggerMethod('render');
+	            if (image.src !== '') {
+	                this.update();
+	            }
+	            return this;
+	        }
+	    }, {
+	        key: "update",
+	        value: function update() {
+	            var _this2 = this;
+
+	            this.triggerMethod('before:update');
+	            var img = this.ui['image'];
+	            return utils_1.getImageSize(img).then(function (size) {
+	                if (_this2.ui['image'] == null) return _this2;
+	                var el = _this2.el;
+	                if (_this2._cropping == null) {
+	                    if (_this2.options.aspectRatio == null) {
+	                        return _this2;
+	                    }
+	                    _this2._cropping = types_1.getCropping(size, _this2.options.aspectRatio);
+	                }
+	                var cropping = _this2._cropping;
+	                var cw = el.clientWidth,
+	                    ch = el.clientHeight,
+	                    rx = cw / cropping.width,
+	                    ry = ch / cropping.height;
+	                var width = size.width,
+	                    height = size.height;
+	                var e = {
+	                    width: Math.round(rx * width) + 'px',
+	                    height: Math.round(ry * height) + 'px',
+	                    marginLeft: '-' + Math.round(rx * cropping.x) + 'px',
+	                    marginTop: '-' + Math.round(ry * cropping.y) + 'px'
+	                };
+	                for (var key in e) {
+	                    img.style[key] = e[key];
+	                }
+	                _this2.triggerMethod('update');
+	            });
+	        }
+	    }, {
+	        key: "cropping",
+	        set: function set(cropping) {
+	            this._cropping = cropping;
+	            this.update();
+	        },
+	        get: function get() {
+	            return this._cropping;
+	        }
+	    }]);
+
+	    return CropPreView;
+	}(views_1.View);
+	CropPreView = __decorate([views_1.attributes({
+	    className: 'torsten cropping-preview',
+	    ui: {
+	        image: 'img'
+	    }
+	}), __metadata('design:paramtypes', [Object])], CropPreView);
+	exports.CropPreView = CropPreView;
+
+/***/ },
+/* 28 */
+/***/ function(module, exports) {
+
+	"use strict";
+
+	function getCropping(size, ratio) {
+	    var width = size.width,
+	        height = size.height;
+	    var nh = height,
+	        nw = width;
+	    if (width > height) {
+	        nh = width / ratio;
+	    } else {
+	        nw = height * ratio;
+	    }
+	    return {
+	        x: 0,
+	        y: 0,
+	        width: nw,
+	        height: nh,
+	        rotate: 0,
+	        scaleX: 1,
+	        scaleY: 1
+	    };
+	}
+	exports.getCropping = getCropping;
+
+/***/ },
+/* 29 */
+/***/ function(module, exports) {
+
+	"use strict";
+
+	function getImageSize(image) {
+	    var load = function load() {
+	        return new Promise(function (resolve, reject) {
+	            var i = new Image();
+	            i.onload = function () {
+	                resolve({
+	                    width: i.naturalWidth || i.width,
+	                    height: i.naturalHeight || i.height
+	                });
+	            };
+	            i.onerror = reject;
+	            i.src = image.src;
+	        });
+	    };
+	    if (image.naturalHeight === undefined) {
+	        return load();
+	    } else if (image.naturalHeight === 0) {
+	        return new Promise(function (resolve, reject) {
+	            var time = setTimeout(function () {
+	                time = null;
+	                load().then(resolve, reject);
+	            }, 200);
+	            image.onload = function () {
+	                if (time !== null) {
+	                    clearTimeout(time);
+	                }
+	                resolve({
+	                    width: image.naturalWidth,
+	                    height: image.naturalHeight
+	                });
+	            };
+	        });
+	    } else {
+	        return Promise.resolve({
+	            width: image.naturalWidth,
+	            height: image.naturalHeight
+	        });
+	    }
+	}
+	exports.getImageSize = getImageSize;
+
+/***/ },
+/* 30 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	var _get = function get(object, property, receiver) { if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
+
+	var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; };
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+	var __decorate = undefined && undefined.__decorate || function (decorators, target, key, desc) {
+	    var c = arguments.length,
+	        r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc,
+	        d;
+	    if ((typeof Reflect === "undefined" ? "undefined" : _typeof(Reflect)) === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);else for (var i = decorators.length - 1; i >= 0; i--) {
+	        if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+	    }return c > 3 && r && Object.defineProperty(target, key, r), r;
+	};
+	var __metadata = undefined && undefined.__metadata || function (k, v) {
+	    if ((typeof Reflect === "undefined" ? "undefined" : _typeof(Reflect)) === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+	};
+	var views_1 = __webpack_require__(10);
+	var cropperjs_1 = __webpack_require__(31);
+	var types_1 = __webpack_require__(28);
+	var utils_1 = __webpack_require__(29);
+	var orange_dom_1 = __webpack_require__(11);
+	var orange_1 = __webpack_require__(5);
+	var emptyImage = "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=";
+	function isFunction(a) {
+	    return typeof a === 'function';
+	}
+	var CropView = function (_views_1$View) {
+	    _inherits(CropView, _views_1$View);
+
+	    function CropView() {
+	        var options = arguments.length <= 0 || arguments[0] === undefined ? { resize: false } : arguments[0];
+
+	        _classCallCheck(this, CropView);
+
+	        var _this = _possibleConstructorReturn(this, (CropView.__proto__ || Object.getPrototypeOf(CropView)).call(this, options));
+
+	        _this.options = options;
+	        return _this;
+	    }
+
+	    _createClass(CropView, [{
+	        key: "setModel",
+	        value: function setModel(model) {
+	            var _this2 = this;
+
+	            if (this.ui['image'] == null) return this;
+	            this.deactivate();
+	            var image = this.ui['image'];
+	            image.style.display = 'none';
+	            if (model == null) {
+	                image.src = null;
+	                if (this.model) this.stopListening(this.model);
+	                this._model = model;
+	                return;
+	            }
+	            _get(CropView.prototype.__proto__ || Object.getPrototypeOf(CropView.prototype), "setModel", this).call(this, model);
+	            //image.src = model.getURL();
+	            this._updateImage().then(function (loaded) {
+	                if (loaded) image.style.display = 'block';
+	                return loaded;
+	            }).then(function (loaded) {
+	                if (!loaded) return;
+	                var cropping = model.get('meta.cropping');
+	                if (cropping) {
+	                    _this2.cropping = cropping;
+	                } else if (_this2.options.aspectRatio != null) {
+	                    utils_1.getImageSize(image).then(function (size) {
+	                        _this2.cropping = types_1.getCropping(size, _this2.options.aspectRatio);
+	                        //this.triggerMethod('crop', cropping);
+	                    }).catch(function (e) {
+	                        _this2.trigger('error', e);
+	                    });
+	                }
+	            });
+	            return this;
+	        }
+	    }, {
+	        key: "activate",
+	        value: function activate() {
+	            var _this3 = this;
+
+	            if (this._cropper != null) {
+	                return this;
+	            }
+	            var o = this.options;
+	            var opts = {
+	                crop: function crop(e) {
+	                    _this3._cropping = e.detail;
+	                    _this3.triggerMethod('crop', e.detail);
+	                    if (isFunction(o.crop)) o.crop(e);
+	                },
+	                data: this.cropping,
+	                built: function built() {
+	                    _this3.triggerMethod('built');
+	                    if (isFunction(o.built)) o.built();
+	                },
+	                cropstart: function cropstart(e) {
+	                    _this3.triggerMethod('cropstart');
+	                    if (isFunction(o.cropstart)) o.cropstart(e);
+	                },
+	                cropmove: function cropmove(e) {
+	                    _this3.triggerMethod('cropmove', e);
+	                    if (isFunction(o.cropmove)) o.cropmove(e);
+	                },
+	                cropend: function cropend(e) {
+	                    _this3.triggerMethod('cropend', e);
+	                    if (isFunction(o.cropend)) o.cropend(e);
+	                }
+	            };
+	            opts = orange_1.extend({}, this.options, opts);
+	            this._cropper = new cropperjs_1.default(this.ui['image'], opts);
+	            return this;
+	        }
+	    }, {
+	        key: "deactivate",
+	        value: function deactivate() {
+	            if (this._cropper) {
+	                this._cropper.destroy();
+	                this._cropper = void 0;
+	            }
+	            return this;
+	        }
+	    }, {
+	        key: "toggle",
+	        value: function toggle() {
+	            return this._cropper != null ? this.deactivate() : this.activate();
+	        }
+	    }, {
+	        key: "onCrop",
+	        value: function onCrop(cropping) {
+	            if (this.options.previewView) {
+	                this.options.previewView.cropping = cropping;
+	            }
+	        }
+	    }, {
+	        key: "render",
+	        value: function render() {
+	            this.triggerMethod('before:render');
+	            this.undelegateEvents();
+	            var image = this.el.querySelector('img');
+	            if (image == null) {
+	                image = document.createElement('img');
+	                this.el.appendChild(image);
+	            }
+	            this.delegateEvents();
+	            this.triggerMethod('render');
+	            return this;
+	        }
+	    }, {
+	        key: "_updateImage",
+	        value: function _updateImage() {
+	            var _this4 = this;
+
+	            var img = this.el.querySelector('img');
+	            if (this.model === null) {
+	                img.src = emptyImage;
+	                return Promise.resolve(false);
+	            }
+	            this.triggerMethod('before:image');
+	            img.src = this.model.url;
+	            return orange_dom_1.imageLoaded(img).then(function (loaded) {
+	                _this4.triggerMethod('image', loaded);
+	                return loaded;
+	            }).catch(function (e) {
+	                _this4.triggerMethod('error', new Error('image not loaded'));
+	                return Promise.resolve(false);
+	            });
+	        }
+	    }, {
+	        key: "destroy",
+	        value: function destroy() {
+	            this.deactivate();
+	            _get(CropView.prototype.__proto__ || Object.getPrototypeOf(CropView.prototype), "destroy", this).call(this);
+	        }
+	    }, {
+	        key: "cropper",
+	        get: function get() {
+	            if (this._cropper != null) return this._cropper;
+	            if (this.ui['image'] == null) return null;
+	            return this.activate()._cropper;
+	        }
+	    }, {
+	        key: "cropping",
+	        get: function get() {
+	            return this._cropping;
+	        },
+	        set: function set(cropping) {
+	            this._cropping = cropping;
+	            if (this.options.previewView) this.options.previewView.cropping = cropping;
+	        }
+	    }]);
+
+	    return CropView;
+	}(views_1.View);
+	CropView = __decorate([views_1.attributes({
+	    className: 'torsten cropping-view',
+	    ui: {
+	        image: 'img'
+	    }
+	}), __metadata('design:paramtypes', [Object])], CropView);
+	exports.CropView = CropView;
+
+/***/ },
+/* 31 */
+/***/ function(module, exports) {
+
+	module.exports = __WEBPACK_EXTERNAL_MODULE_31__;
 
 /***/ }
 /******/ ])

@@ -402,12 +402,23 @@ func (self *sqlmeta) Remove(path string, options torsten.RemoveOptions) error {
 			return err
 		}
 
+		return tx.Commit()
+
 	} else {
 
-		return tx.Rollback()
+		sqli, args, err := sq.Delete(FileTable).Where("id = ?", NewInfoID(stat.Id)).ToSql()
+
+		if err != nil {
+			panic(err)
+		}
+
+		if _, err := self.db.Exec(sqli, args...); err != nil {
+			return notFoundOr(err)
+		}
+
 	}
 
-	return tx.Commit()
+	return nil
 
 }
 

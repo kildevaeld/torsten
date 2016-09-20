@@ -201,10 +201,8 @@ type size_writer struct {
 
 func (self *size_writer) Write(bs []byte) (int, error) {
 
-	if !self.is_init {
-		if err := self.init(); err != nil {
-			return -1, err
-		}
+	if err := self.init(); err != nil {
+		return -1, err
 	}
 
 	i, err := self.tmpFile.Write(bs)
@@ -213,7 +211,9 @@ func (self *size_writer) Write(bs []byte) (int, error) {
 }
 
 func (self *size_writer) init() error {
-
+	if self.is_init {
+		return nil
+	}
 	file, err := ioutil.TempFile("", "")
 	if err != nil {
 		return err
@@ -225,6 +225,9 @@ func (self *size_writer) init() error {
 }
 
 func (self *size_writer) Close() error {
+	if err := self.init(); err != nil {
+		return err
+	}
 	defer os.Remove(self.tmpFile.Name())
 	defer self.tmpFile.Close()
 

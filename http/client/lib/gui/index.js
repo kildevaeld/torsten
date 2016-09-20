@@ -4,4 +4,5 @@ function __export(m) {
 }
 __export(require('./collection'));
 __export(require('./list/index'));
-__export(require('./gallery'));
+__export(require('./gallery/index'));
+__export(require('./crop/index'));

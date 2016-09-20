@@ -43,9 +43,9 @@
   "dependencies": {
     "blazy": "^1.6.2",
     "collection": "git+https://github.com/kildevaeld/collectionjs.git",
+    "cropperjs": "^0.8.1",
     "orange": "git+https://github.com/kildevaeld/orange.git",
     "orange.request": "git+https://github.com/kildevaeld/orange.request.git",
-    "superagent": "^2.2.0",
     "views": "git+https://github.com/kildevaeld/views.git"
   },
   "typings": "lib/index",
@@ -53,8 +53,12 @@
     "format": "cjs",
     "registry": "github",
     "dependencies": {
-      "orange": "github:kildevaeld/orange",
-      "orange.request": "github:kildevaeld/orange"
+      "orange": "github:kildevaeld/orange@master",
+      "orange.request": "github:kildevaeld/orange@master",
+      "views": "github:kildevaeld/views@master",
+      "collection": "github:kildevaeld/collection@master",
+      "blazy": "npm:^1.6.2",
+      "cropperjs": "npm:cropperjs^0.8.1"
     }
   }
 }

@@ -8,12 +8,13 @@ import {addClass, removeClass} from 'orange.dom';
 import templates from '../templates/index';
 import {FileInfoModel} from '../collection'
 import {getMimeIcon} from '../gallery/mimetypes';
+
 @attributes({
     template: () => templates['list-item'],
     tagName: 'div',
     className: 'file-list-item',
     ui: {
-        remove: '.file-list-item.close-button',
+        remove: '.file-list-item .close-button',
         name: '.name',
         mime: '.mime'
     },

@@ -79,16 +79,16 @@ export class FileListView extends CollectionView<HTMLDivElement> {
         })
 
         this.listenTo(this, 'childview:remove', function (view, {model}) {
-
-            if (this.options.deleteable === true) {
+            this.trigger('remove', view, model);
+            /*if (this.options.deleteable === true) {
                 let remove = true;
                 if (model.has('deleteable')) {
                     remove = !!model.get('deleteable');
                 }
                 if (remove) model.remove();
             } else {
-
-            }
+                
+            }*/
         });
 
 

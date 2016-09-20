@@ -2,7 +2,7 @@
 import {HttpRequest, HttpMethod, BodyType, Response} from 'orange.request'
 import {IPromise} from 'orange'
 import {Request} from './types';
-import {isString, isBuffer, isFormData, isObject, isFile} from './utils';
+import {isString, isBuffer, isFormData, isObject, isFile, isReadableStream} from './utils';
 
 
 export function request(method: HttpMethod, url: string, r: Request = {}): IPromise<Response> {
@@ -35,7 +35,7 @@ export function upload(url: string, r: Request, data): IPromise<Response> {
         mimeType = r.mime || "text/plain";
     } else if (isBuffer(data)) {
         req.header('Content-Length', data.length);
-    } else if (isObject(data) && !isFile(data) && !isFormData(data)) {
+    } else if (isObject(data) && !isFile(data) && !isFormData(data) && !isReadableStream(data)) {
         try {
             data = JSON.stringify(data);
             req.header('Content-Length', data.length);
@@ -46,6 +46,7 @@ export function upload(url: string, r: Request, data): IPromise<Response> {
     }
     
     if (isFile(data)) {
+    
         let form = new FormData();
         form.append('file', data);
         data = form;
@@ -55,7 +56,7 @@ export function upload(url: string, r: Request, data): IPromise<Response> {
         req.header('Content-Type', mimeType);
     }
    
-   
+    
     return req.end(data);
 
 }

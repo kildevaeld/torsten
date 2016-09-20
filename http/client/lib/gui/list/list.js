@@ -51,16 +51,16 @@ let FileListView = class FileListView extends views_1.CollectionView {
             this.trigger('dblclick', view, model);
         });
         this.listenTo(this, 'childview:remove', function (view, { model }) {
-            if (this.options.deleteable === true) {
+            this.trigger('remove', view, model);
+            /*if (this.options.deleteable === true) {
                 let remove = true;
                 if (model.has('deleteable')) {
                     remove = !!model.get('deleteable');
                 }
-                if (remove)
-                    model.remove();
-            }
-            else {
-            }
+                if (remove) model.remove();
+            } else {
+                
+            }*/
         });
         this.listenTo(this, 'childview:image', function (view) {
             let img = view.$('img')[0];

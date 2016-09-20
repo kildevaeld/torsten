@@ -4,7 +4,7 @@ import templates from '../templates/index';
 import {FileInfoModel} from '../collection';
 import {IClient} from '../../types'
 import {Html} from 'orange.dom';
-
+import {humanFileSize} from 'orange';
 
 export interface FileInfoViewOptions extends ViewOptions {
     client: IClient;
@@ -58,12 +58,13 @@ export class FileInfoView extends View<HTMLDivElement> {
         
         ui.name.textContent = model.get('name');
         ui.mime.textContent = model.get('mime');
-        ui.size.textContent = model.get('size');
+        ui.size.textContent = humanFileSize(model.get('size'));
         ui.download.textContent = model.get('name');
         
         let url = this.client.endpoint + model.fullPath + '?download=true';
         ui.download.setAttribute('href', url);
         this.el.style.opacity = "1";
+        
     }
 
 }

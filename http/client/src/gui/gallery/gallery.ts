@@ -97,11 +97,13 @@ export class GalleryView extends LayoutView<HTMLDivElement> {
     }
 
     private _onFileInfoRemoved(view, model:FileInfoModel) {
+        
         this.client.remove(model.fullPath)
         .then( res => {
             if (res.message === 'ok') {
                 model.remove();
             }
+            console.log(res)
         })
     }
 

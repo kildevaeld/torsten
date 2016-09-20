@@ -335,13 +335,23 @@ func (self *HttpServer) handleUpload(ctx echo.Context) error {
 func (self *HttpServer) handleDeleteFile(ctx echo.Context) error {
 	path := "/" + ctx.ParamValues()[0]
 
-	/*_, err := self.torsten.Stat(path)
+	stat, err := self.torsten.Stat(path, torsten.GetOptions{})
 	if err != nil {
 		return err
-	}*/
-
-	if err := self.torsten.RemoveAll(path, torsten.RemoveOptions{}); err != nil {
-		return err
 	}
-	return nil
+
+	if stat.IsDir {
+		if err := self.torsten.RemoveAll(path, torsten.RemoveOptions{}); err != nil {
+			return notFoundOr(ctx, err, true)
+		}
+	} else {
+
+		if err := self.torsten.Remove(path, torsten.RemoveOptions{}); err != nil {
+			return notFoundOr(ctx, err, true)
+		}
+	}
+
+	return ctx.JSON(http.StatusOK, dict.Map{
+		"message": "ok",
+	})
 }

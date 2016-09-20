@@ -433,7 +433,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        mimeType = r.mime || "text/plain";
 	    } else if (utils_1.isBuffer(data)) {
 	        req.header('Content-Length', data.length);
-	    } else if (utils_1.isObject(data) && !utils_1.isFile(data) && !utils_1.isFormData(data)) {
+	    } else if (utils_1.isObject(data) && !utils_1.isFile(data) && !utils_1.isFormData(data) && !utils_1.isReadableStream(data)) {
 	        try {
 	            data = JSON.stringify(data);
 	            req.header('Content-Length', data.length);

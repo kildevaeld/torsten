@@ -10,6 +10,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 const views_1 = require('views');
 const index_1 = require('../templates/index');
+const orange_1 = require('orange');
 let FileInfoView = class FileInfoView extends views_1.View {
     constructor(options) {
         super(options);
@@ -44,7 +45,7 @@ let FileInfoView = class FileInfoView extends views_1.View {
         let ui = this.ui;
         ui.name.textContent = model.get('name');
         ui.mime.textContent = model.get('mime');
-        ui.size.textContent = model.get('size');
+        ui.size.textContent = orange_1.humanFileSize(model.get('size'));
         ui.download.textContent = model.get('name');
         let url = this.client.endpoint + model.fullPath + '?download=true';
         ui.download.setAttribute('href', url);

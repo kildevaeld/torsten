@@ -74,6 +74,7 @@ let GalleryView = class GalleryView extends views_1.LayoutView {
             if (res.message === 'ok') {
                 model.remove();
             }
+            console.log(res);
         });
     }
     _setCollection(collection) {

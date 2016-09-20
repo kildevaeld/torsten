@@ -1,3 +1,4 @@
 export * from './collection';
 export * from './list/index';
-export * from './gallery';
+export * from './gallery/index';
+export * from './crop/index';

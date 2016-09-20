@@ -56,7 +56,9 @@ gulp.task('gui:webpack', ['gui:typescript'], () => {
                 "orange": "orange",
                 "orange.request": ['orange', 'request'],
                 "views": "views",
-                "collection": "collection"
+                "collection": "collection",
+                "cropperjs": "cropperjs",
+                "blazy": "blazy"
             }
         })).pipe(gulp.dest('dist'))
 });
@@ -70,7 +72,7 @@ gulp.task('gui:webpack:bundle', ['gui:typescript'], () => {
     return gulp.src('lib/gui/index.js')
         .pipe(wpstream({
             output: output,
-            /*target: function (compiler) {
+            target: function (compiler) {
                 compiler.apply(
                     new JsonpTemplatePlugin(output),
                     new FunctionModulePlugin(output),
@@ -78,7 +80,7 @@ gulp.task('gui:webpack:bundle', ['gui:typescript'], () => {
                     new NodeTargetPlugin(webpackNode),
                     new LoaderTargetPlugin('web')
                 );
-            },*/
+            },
             module: {
                 loaders: [
                     { test: /\.json/, loader: 'json-loader' },

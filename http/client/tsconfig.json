@@ -8,7 +8,8 @@
         "outDir": "lib",
         "declaration": true,
         "emitDecoratorMetadata": true,
-        "experimentalDecorators": true
+        "experimentalDecorators": true,
+        "allowSyntheticDefaultImports": true
     },
     "files": [
         "typings/index.d.ts",
@@ -25,6 +26,7 @@
         "src/gui/collection.ts",
         "src/gui/error.ts",
         "src/gui/types.ts",
+        "src/gui/utils.ts",
 
         "src/gui/list/index.ts",
         "src/gui/list/list.ts",
@@ -38,6 +40,11 @@
         "src/gui/gallery/gallery.ts",
         "src/gui/gallery/mimetypes.ts",
         "src/gui/gallery/dropzone.ts",
+
+        "src/gui/crop/crop-view.ts",
+        "src/gui/crop/crop-preview.ts",
+        "src/gui/crop/index.ts",
+        "src/gui/crop/types.ts",
 
         "src/gui/templates/index.ts"
 

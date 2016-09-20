@@ -64,7 +64,7 @@ FileListItemView = __decorate([
         tagName: 'div',
         className: 'file-list-item',
         ui: {
-            remove: '.file-list-item.close-button',
+            remove: '.file-list-item .close-button',
             name: '.name',
             mime: '.mime'
         },
