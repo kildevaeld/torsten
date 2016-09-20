@@ -22,6 +22,7 @@ var isTrueRegex = regexp.MustCompile("true|yes|1|ja|oui|si")
 type Options struct {
 	MaxRequestBody int `max_request_body`
 	Expires        int
+	Log            bool
 }
 
 type HttpServer struct {
@@ -65,7 +66,9 @@ func (self *HttpServer) Listen(addr string) error {
 func (self *HttpServer) listen(s engine.Server, addr string) error {
 	self.echo.SetDebug(true)
 
-	self.echo.Use(NewWithNameAndLogger("torsten", self.log.WithField("prefix", "http")))
+	if self.o.Log {
+		self.echo.Use(NewWithNameAndLogger("torsten", self.log.WithField("prefix", "http")))
+	}
 	self.echo.Use(middleware.Recover())
 	self.echo.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		//AllowOrigins: []string{"https://labstack.com", "https://labstack.net"},
@@ -88,7 +91,7 @@ func (self *HttpServer) listen(s engine.Server, addr string) error {
 	self.echo.Post("/*", self.handleUpload)
 	self.echo.Delete("/*", self.handleDeleteFile)
 
-	self.log.Printf("Torsten#Http running an listening on: %s", addr)
+	self.log.Printf("Running and listening on: %s", addr)
 
 	return self.echo.Run(s)
 }

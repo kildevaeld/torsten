@@ -61,13 +61,12 @@ func getTorsten() (torsten.Torsten, error) {
 	if metaOptions.Options == "" {
 		metaOptions.Options = "./test.sqlite"
 	}
-	metaOptions.Debug = true
 
-	if meta, err = sqlmeta.New(metaOptions); err != nil {
+	if meta, err = sqlmeta.NewWithLogger(metaOptions, logger.WithField("prefix", "meta")); err != nil {
 		return nil, err
 	}
 
-	t := torsten.New(fs, meta)
+	t := torsten.NewWithLogger(fs, meta, logger)
 
 	//i, e := meta.Clean(time.Now())
 	hook := func(hook torsten.Hook, path string, info *torsten.FileInfo) error {

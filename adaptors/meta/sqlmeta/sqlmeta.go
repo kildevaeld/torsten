@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -30,7 +28,7 @@ type Options struct {
 
 type sqlmeta struct {
 	db  *sqlx.DB
-	log *logrus.Logger
+	log logrus.FieldLogger
 }
 
 func notFoundOr(err error) error {
@@ -50,7 +48,7 @@ func (self *sqlmeta) init() error {
 	default:
 		return errors.New("Driver not suppported: " + self.db.DriverName())
 	}
-
+	self.log.Debugf("initialize %s database", self.db.DriverName())
 	// The mysql driver does not support multiple statements
 	split := strings.Split(string(MustAsset(asset)), ";\n")
 	for _, st := range split {
@@ -495,23 +493,17 @@ func (self *sqlmeta) Count(path string) (int64, error) {
 
 func New(options Options) (torsten.MetaAdaptor, error) {
 
+	return NewWithLogger(options, logrus.New())
+}
+
+func NewWithLogger(options Options, logger logrus.FieldLogger) (torsten.MetaAdaptor, error) {
 	db, err := sqlx.Open(options.Driver, options.Options)
 
 	if err != nil {
 		return nil, err
 	}
 
-	m := &sqlmeta{db, logrus.New()}
-
-	m.log.WithField("prefix", "torsten:meta").Infof("Using: %s, options: %s", options.Driver, options.Options)
-
-	if options.Debug {
-		m.log.Out = os.Stdout
-		m.log.Level = logrus.DebugLevel
-	} else {
-		m.log.Out = ioutil.Discard
-
-	}
+	m := &sqlmeta{db, logger}
 
 	m.init()
 

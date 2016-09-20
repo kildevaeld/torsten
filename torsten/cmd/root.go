@@ -21,6 +21,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 )
 
 var cfgFile string
@@ -55,7 +56,8 @@ func init() {
 	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.torsten.yaml)")
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	RootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	RootCmd.Flags().BoolP("verbose", "v", false, "Help message for toggle")
+	viper.BindPFlag("vebose", RootCmd.Flags().Lookup("verbose"))
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -69,12 +71,17 @@ func initConfig() {
 
 	logger = logrus.New()
 
+	if viper.GetBool("verbose") {
+		logger.Level = logrus.DebugLevel
+		logger.Formatter = new(prefixed.TextFormatter)
+	}
+
 	///viper.AutomaticEnv()            // read in environment variables that match
 	//viper.SetConfigType("json")
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
-		logger.Debugf("Using config file:", viper.ConfigFileUsed())
+		logger.Debugf("Using config file: %s", viper.ConfigFileUsed())
 	} else {
 
 	}

@@ -19,7 +19,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/kildevaeld/torsten"
 	"github.com/kildevaeld/torsten/http"
 	"github.com/spf13/cobra"
@@ -54,7 +53,6 @@ func runHttp() error {
 		tors torsten.Torsten
 		err  error
 		serv *http.HttpServer
-		log  *logrus.Logger
 	)
 
 	if tors, err = getTorsten(); err != nil {
@@ -63,18 +61,19 @@ func runHttp() error {
 
 	//tors.RegisterCreateHook(hooks.ImageHook())
 
-	if log, err = getLogger(); err != nil {
+	/*if log, err = getLogger(); err != nil {
 		return err
 	}
 	if viper.GetBool("verbose") {
 		log.Level = logrus.DebugLevel
 	} else {
 		log.Level = logrus.WarnLevel
-	}
+	}*/
 
-	serv = http.NewWithLogger(tors, log, http.Options{
+	serv = http.NewWithLogger(tors, logger.WithField("prefix", "http"), http.Options{
 		Expires:        int(viper.GetInt64("expires")),
 		MaxRequestBody: int(viper.GetInt64("max-request-body")),
+		Log:            viper.GetBool("log-http"),
 	})
 
 	signal_chan := make(chan os.Signal, 1)
@@ -92,7 +91,7 @@ func runHttp() error {
 
 	go func() {
 		signal := <-signal_chan
-		log.Printf("Signal %s. Existing...", signal)
+		logger.Printf("Signal %s. Existing...", signal)
 
 		exit_chan <- serv.Close()
 	}()

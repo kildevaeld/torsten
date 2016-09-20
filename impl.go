@@ -100,7 +100,7 @@ func (self *torsten) notFoundOrLog(err error) error {
 	if err == ErrNotFound {
 		return err
 	}
-	logrus.WithError(err).Errorf("Unexcepted error %v", err)
+	self.log.WithError(err).Errorf("Unexcepted error %v", err)
 	return err
 }
 
@@ -142,7 +142,7 @@ func (self *torsten) RemoveAll(path string, o RemoveOptions) error {
 		wg.Add(1)
 		go func(path string) {
 			defer wg.Done()
-			logrus.Printf("Deleting %s", path)
+			self.log.Printf("Deleting %s", path)
 			self.data.Remove([]byte(path))
 		}(path)
 	}
