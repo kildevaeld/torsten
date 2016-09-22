@@ -125,6 +125,7 @@ func (self *memory_lock) RUnlock(key []byte) {
 				panic(fmt.Errorf("RWLock#RUnlock Invalid lock state: %d", lock.state))
 			}
 			lock.readers--
+
 			if lock.readers == 0 {
 				isReady = true
 				self.ready <- string(key)
@@ -139,7 +140,7 @@ func (self *memory_lock) RUnlock(key []byte) {
 
 func (self *memory_lock) Start() {
 
-	self.ready = make(chan string)
+	self.ready = make(chan string, 200)
 	self.locks = make(map[string]*lock_state)
 	self.queue = make(map[string]*Queue)
 
@@ -183,6 +184,8 @@ func (self *memory_lock) Start() {
 
 func (self *memory_lock) Stop() {
 	self.kill <- struct{}{}
+	close(self.kill)
+	close(self.ready)
 }
 
 func NewLock() RWLock {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/kildevaeld/filestore"
+	"github.com/kildevaeld/torsten/rwlock"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -19,7 +20,7 @@ type torsten struct {
 	hooks       map[Hook][]HookFunc
 	createHooks []CreateHookFunc
 	lock        sync.RWMutex
-	states      StateLock
+	states      rwlock.RWLock
 	log         logrus.FieldLogger
 }
 
@@ -50,10 +51,8 @@ func (self *torsten) Create(path string, opts CreateOptions) (io.WriteCloser, er
 		info.Meta = MetaMap{}
 	}
 
-	lock, err := self.states.Acquire(StateCreate, path)
-	if err != nil {
-		return nil, err
-	}
+	self.states.Lock([]byte(path))
+	defer self.states.Unlock([]byte(path))
 
 	if err := self.runHook(PreCreate, path, info); err != nil {
 		return nil, err
@@ -62,16 +61,14 @@ func (self *torsten) Create(path string, opts CreateOptions) (io.WriteCloser, er
 	var writer io.WriteCloser = newWriter(self, path, info, func(err error) error {
 
 		if err != nil {
-			self.states.Release(lock)
+
 			return err
 		}
 
 		if err = self.meta.Insert(path, info); err != nil {
-			self.states.Release(lock)
+
 			return err
 		}
-
-		self.states.Release(lock)
 
 		return self.runHook(PostCreate, path, info)
 	})
@@ -152,7 +149,7 @@ func (self *torsten) RemoveAll(path string, o RemoveOptions) error {
 }
 
 func (self *torsten) Open(pathOrIdOrInfo interface{}, o GetOptions) (io.ReadCloser, error) {
-	var (
+	/*var (
 		stat *FileInfo
 		err  error
 	)
@@ -160,7 +157,8 @@ func (self *torsten) Open(pathOrIdOrInfo interface{}, o GetOptions) (io.ReadClos
 		return nil, err
 	}
 
-	return self.data.Get([]byte(stat.FullPath()))
+	return self.data.Get([]byte(stat.FullPath()))*/
+	return new_lockedreader(self, pathOrIdOrInfo, o)
 
 }
 
@@ -172,11 +170,14 @@ func (self *torsten) infoFromInterface(v interface{}, o GetOptions) (*FileInfo, 
 
 	switch t := v.(type) {
 	case string:
+		self.states.RLock([]byte(t))
 		stat, err = self.meta.Get(t, o)
+		self.states.RUnlock([]byte(t))
 	case uuid.UUID:
 		var s FileInfo
+		self.states.RLock(t.Bytes())
 		err = self.meta.GetById(t, &s)
-
+		self.states.RUnlock(t.Bytes())
 		stat = &s
 	case *FileInfo:
 		stat = t
@@ -203,11 +204,9 @@ func (self *torsten) Stat(pathOtId interface{}, o GetOptions) (*FileInfo, error)
 		return nil, err
 	}
 
-	path := stat.FullPath()
-
-	if self.states.HasLock(path) {
+	/*if self.states.HasLock(path) {
 		return nil, errors.New("is locked")
-	}
+	}*/
 	return stat, nil
 }
 
@@ -274,8 +273,8 @@ func New(f filestore.Store, m MetaAdaptor) Torsten {
 }
 
 func NewWithLogger(f filestore.Store, m MetaAdaptor, logger logrus.FieldLogger) Torsten {
-	l := &MemoryLock{locks: make(map[Lock]State)}
-
+	l := rwlock.NewLock()
+	l.Start()
 	t := &torsten{
 		data:   f,
 		meta:   m,

@@ -3,20 +3,17 @@ package thumbnail
 import (
 	"errors"
 	"io"
-	"path/filepath"
 
 	"github.com/kildevaeld/filestore"
 	"github.com/kildevaeld/torsten"
 	"github.com/kildevaeld/torsten/workqueue"
-
-	uuid "github.com/satori/go.uuid"
 )
 
 var ThumbnailPath = ".thumbnails"
 
 type Size struct {
-	W uint
-	H uint
+	Width  uint
+	Height uint
 }
 
 type ThumbnailFunc func(r io.Reader, size Size) (io.ReadCloser, torsten.CreateOptions, error)
@@ -49,10 +46,10 @@ func (self *Thumbnail) can(mime string) bool {
 	return false
 }
 
-func (self *Thumbnail) GetThumbnail(pathOrId interface{}, o torsten.GetOptions) (io.ReadCloser, error) {
+func (self *Thumbnail) GetThumbnail(pathOrId interface{}, o torsten.GetOptions, size Size) (io.ReadCloser, error) {
 	var (
 		stat *torsten.FileInfo
-		//reader io.ReadCloser
+
 		ri  interface{}
 		err error
 	)
@@ -66,21 +63,10 @@ func (self *Thumbnail) GetThumbnail(pathOrId interface{}, o torsten.GetOptions) 
 		return nil, errors.New("cannot")
 	}
 
-	/*reader, err = self.dispatcher.RequestAndWait(WorkRequest{
-		Info: stat,
-		Size: Size{
-			W: 64,
-			H: 64,
-		},
-		gen: _generators[stat.Mime],
-	})*/
 	ri, err = self.dispatcher.RequestAndWait(&request{
 		info: stat,
-		size: Size{
-			W: 96,
-			H: 96,
-		},
-		gen: _generators[stat.Mime],
+		size: size,
+		gen:  _generators[stat.Mime],
 	})
 
 	if err != nil {
@@ -89,106 +75,6 @@ func (self *Thumbnail) GetThumbnail(pathOrId interface{}, o torsten.GetOptions) 
 
 	return ri.(io.ReadCloser), nil
 
-}
-
-func (self *Thumbnail) createThumbnail(info *torsten.FileInfo) (*torsten.FileInfo, error) {
-	if _, ok := info.Meta["thumbnail"]; ok {
-		return nil, nil
-	}
-
-	var (
-		err     error
-		writer  io.WriteCloser
-		reader  io.ReadCloser
-		options torsten.CreateOptions
-	)
-	if !self.can(info.Mime) {
-		return nil, errors.New("cannot create thumbnail")
-	}
-
-	tPath := filepath.Join(info.Path, ".thumbnails", info.Name)
-
-	if reader, err = self.torsten.Open(info, torsten.GetOptions{
-		Gid: []uuid.UUID{info.Uid},
-		Uid: info.Uid,
-	}); err != nil {
-		return nil, err
-	}
-
-	gen := _generators[info.Mime]
-
-	if reader, options, err = gen(reader, Size{100, 100}); err != nil {
-		return nil, err
-	}
-
-	options.Gid = info.Gid
-	options.Uid = info.Uid
-	options.Meta = torsten.MetaMap{"thumbnail": info.Id}
-
-	defer reader.Close()
-
-	if writer, err = self.torsten.Create(tPath, options); err != nil {
-		return nil, err
-	}
-
-	defer writer.Close()
-	if _, err = io.Copy(writer, reader); err != nil {
-		return nil, err
-	}
-
-	return self.torsten.Stat(tPath, torsten.GetOptions{
-		Uid: options.Uid,
-		Gid: []uuid.UUID{options.Gid},
-	})
-}
-
-func (self *Thumbnail) createHook(hook torsten.Hook, path string, info *torsten.FileInfo) error {
-
-	if _, ok := info.Meta["thumbnail"]; ok {
-		return nil
-	}
-
-	var (
-		err     error
-		writer  io.WriteCloser
-		reader  io.ReadCloser
-		options torsten.CreateOptions
-	)
-	if !self.can(info.Mime) {
-		return nil
-	}
-
-	tPath := filepath.Join(filepath.Dir(path), ".thumbnails", info.Name)
-
-	if reader, err = self.torsten.Open(path, torsten.GetOptions{
-		Gid: []uuid.UUID{info.Uid},
-		Uid: info.Uid,
-	}); err != nil {
-		return err
-	}
-
-	gen := _generators[info.Mime]
-
-	if reader, options, err = gen(reader, Size{100, 100}); err != nil {
-		return err
-	}
-
-	options.Gid = info.Gid
-	options.Uid = info.Uid
-	options.Meta = torsten.MetaMap{"thumbnail": info.Id}
-
-	defer reader.Close()
-
-	if writer, err = self.torsten.Create(tPath, options); err != nil {
-		return err
-	}
-
-	defer writer.Close()
-	if _, err = io.Copy(writer, reader); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (self *Thumbnail) Start() {
@@ -202,13 +88,9 @@ func (self *Thumbnail) Stop() {
 }
 
 func NewThumbnailer(t torsten.Torsten, cache filestore.Store) *Thumbnail {
-	/*store, _ := filestore.New(filestore.Options{
-		Driver: "memory",
-	})*/
 
 	queue := workqueue.NewDispatcher()
 	tumb := &Thumbnail{t, queue, cache}
 
-	t.RegisterHook(torsten.PostCreate, tumb.createHook)
 	return tumb
 }

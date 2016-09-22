@@ -38,7 +38,7 @@ func imageGenerator(mime string) func(r io.Reader, size Size) (io.ReadCloser, to
 		if err != nil {
 			return nil, o, err
 		}
-		img = resize.Thumbnail(size.W, size.H, img, resize.Lanczos3)
+		img = resize.Thumbnail(size.Width, size.Height, img, resize.Lanczos3)
 
 		buf := bytes.NewBuffer(nil)
 
@@ -71,27 +71,21 @@ type request struct {
 
 func worker(t torsten.Torsten, cache filestore.Store) func(*workqueue.WorkRequest) (interface{}, error) {
 	return func(req *workqueue.WorkRequest) (interface{}, error) {
-		/*if _, ok := req.Info.Meta["thumbnail"]; ok {
-			return nil, errors. //, nil
-		}*/
 
 		r := req.Data.(*request)
 		info := r.info
 		var (
-			err error
-			//writer  io.WriteCloser
+			err    error
 			reader io.ReadCloser
 			file   io.ReadCloser
-			//options torsten.CreateOptions
 		)
 		hash := info.Sha1
 		if hash == nil || len(hash) == 0 {
 			hash = info.Id.Bytes()
 		}
-		cacheName := []byte(fmt.Sprintf("%x%d%d", hash, r.size.W, r.size.H))
+		cacheName := []byte(fmt.Sprintf("%x%d%d", hash, r.size.Width, r.size.Height))
 
 		if file, err = cache.Get(cacheName); err == nil {
-
 			return file, nil
 		}
 

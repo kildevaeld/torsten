@@ -12,11 +12,12 @@ import (
 
 	"github.com/kildevaeld/dict"
 	"github.com/kildevaeld/torsten"
+	"github.com/kildevaeld/torsten/thumbnail"
 	"github.com/labstack/echo"
 	uuid "github.com/satori/go.uuid"
 )
 
-func (self *HttpServer) handleFile(ctx echo.Context, options torsten.GetOptions, stat *torsten.FileInfo, path string) error {
+func (self *HttpServer) handleFile(ctx echo.Context, options torsten.GetOptions, stat *torsten.FileInfo) error {
 	var (
 		err    error
 		reader io.ReadCloser
@@ -43,7 +44,10 @@ func (self *HttpServer) handleFile(ctx echo.Context, options torsten.GetOptions,
 	}
 
 	if isThumb {
-		reader, err = self.thumb.GetThumbnail(stat, options)
+		reader, err = self.thumb.GetThumbnail(stat, options, thumbnail.Size{
+			Width:  64,
+			Height: 64,
+		})
 		if err != nil {
 			return notFoundOr(ctx, err, false)
 		}
@@ -85,12 +89,12 @@ func (self *HttpServer) handleFile(ctx echo.Context, options torsten.GetOptions,
 
 func (self *HttpServer) handleFiles(ctx echo.Context) error {
 	etag := fmt.Sprintf(`"%x"`, []byte(ctx.Request().URI()))
-	if match := ctx.Request().Header().Get("If-None-Match"); match != "" {
+	/*if match := ctx.Request().Header().Get("If-None-Match"); match != "" {
 		if strings.Contains(match, etag) {
 			ctx.Response().WriteHeader(http.StatusNotModified)
 			return nil
 		}
-	}
+	}*/
 
 	path := "/" + ctx.ParamValues()[0]
 
@@ -99,8 +103,22 @@ func (self *HttpServer) handleFiles(ctx echo.Context) error {
 		Uid: uuid.NewV4(),
 	}
 
-	if ctx.QueryParam("stat") != "" {
-		stat, err := self.torsten.Stat(path, options)
+	var stat *torsten.FileInfo
+	var err error
+
+	if idStr := ctx.QueryParam("id"); idStr != "" {
+		var id uuid.UUID
+		id, err = uuid.FromString(idStr)
+		if err != nil {
+			return err
+		}
+		stat, err = self.torsten.Stat(id, options)
+
+	} else {
+		stat, err = self.torsten.Stat(path, options)
+	}
+
+	if IsTrue(ctx.QueryParam("stat")) {
 		if err != nil {
 			return ctx.JSON(http.StatusNotFound, dict.Map{
 				"message": "Not Found",
@@ -110,57 +128,41 @@ func (self *HttpServer) handleFiles(ctx echo.Context) error {
 			"message": "ok",
 			"data":    stat,
 		})
+	}
 
+	if err != nil {
+		return notFoundOr(ctx, err, false)
+	}
+
+	if !stat.IsDir {
+		return self.handleFile(ctx, options, stat)
+	}
+
+	var files []torsten.FileInfo
+	o := self.getListOptions(ctx)
+
+	err = self.torsten.List(path, o, func(path string, node *torsten.FileInfo) error {
+		files = append(files, *node)
+		return nil
+	})
+
+	if err != nil {
+		return notFoundOr(ctx, err, true)
 	} else {
-		var stat *torsten.FileInfo
-		var err error
 
-		if idStr := ctx.QueryParam("id"); idStr != "" {
-			var id uuid.UUID
-			id, err = uuid.FromString(idStr)
-			if err != nil {
-				return err
-			}
-			stat, err = self.torsten.Stat(id, options)
+		self.genLinks(ctx, o, path)
 
-		} else {
-			stat, err = self.torsten.Stat(path, options)
+		if len(files) == 0 {
+			files = []torsten.FileInfo{}
 		}
+		header := ctx.Response().Header()
+		header.Set("Etag", etag)
+		header.Set("Cache-Control", fmt.Sprintf("max-age=%d", 60))
 
-		if err != nil {
-			return notFoundOr(ctx, err, false)
-		}
-
-		if !stat.IsDir {
-			return self.handleFile(ctx, options, stat, path)
-		}
-
-		var files []torsten.FileInfo
-		o := self.getListOptions(ctx)
-
-		err = self.torsten.List(path, o, func(path string, node *torsten.FileInfo) error {
-			files = append(files, *node)
-			return nil
+		return ctx.JSON(http.StatusOK, dict.Map{
+			"message": "ok",
+			"data":    files,
 		})
-
-		if err != nil {
-			return notFoundOr(ctx, err, true)
-		} else {
-
-			self.genLinks(ctx, o, path)
-
-			if len(files) == 0 {
-				files = []torsten.FileInfo{}
-			}
-			header := ctx.Response().Header()
-			header.Set("Etag", etag)
-			header.Set("Cache-Control", fmt.Sprintf("max-age=%d", 60))
-
-			return ctx.JSON(http.StatusOK, dict.Map{
-				"message": "ok",
-				"data":    files,
-			})
-		}
 	}
 
 	return nil
