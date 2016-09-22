@@ -2,14 +2,15 @@ package cmd
 
 import (
 	"fmt"
-	"io"
 
 	"os"
 
 	"github.com/Sirupsen/logrus"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/kildevaeld/filestore"
+	_ "github.com/kildevaeld/filestore/filesystem"
 	_ "github.com/kildevaeld/filestore/memory"
+	_ "github.com/kildevaeld/filestore/s3"
 	"github.com/kildevaeld/torsten"
 	"github.com/kildevaeld/torsten/adaptors/meta/sqlmeta"
 	_ "github.com/mattn/go-sqlite3"
@@ -69,19 +70,19 @@ func getTorsten() (torsten.Torsten, error) {
 	t := torsten.NewWithLogger(fs, meta, logger)
 
 	//i, e := meta.Clean(time.Now())
-	hook := func(hook torsten.Hook, path string, info *torsten.FileInfo) error {
+	/*hook := func(hook torsten.Hook, path string, info *torsten.FileInfo) error {
 		fmt.Printf("%s: %s\n", hook.String(), path)
 		return nil
 	}
 	t.RegisterHook(torsten.PostCreate, hook)
 	t.RegisterHook(torsten.PreCreate, hook)
 	t.RegisterHook(torsten.PreGet, hook)
-	t.RegisterHook(torsten.PostGet, hook)
+	t.RegisterHook(torsten.PostGet, hook)*/
 
-	t.RegisterCreateHook(func(i *torsten.FileInfo, w io.WriteCloser) (io.WriteCloser, error) {
+	/*t.RegisterCreateHook(func(i *torsten.FileInfo, w io.WriteCloser) (io.WriteCloser, error) {
 		fmt.Printf("Create Hook:\n")
 		return w, nil
-	})
+	})*/
 	return t, nil
 }
 

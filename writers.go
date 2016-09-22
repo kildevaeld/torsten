@@ -142,7 +142,7 @@ func (self *writer) init() error {
 	}
 
 	go func() {
-		fmt.Println("writer init")
+
 		err := self.torsten.data.Set([]byte(self.path), self.buf, &filestore.SetOptions{
 			MimeType: self.info.Mime,
 			Size:     self.info.Size,

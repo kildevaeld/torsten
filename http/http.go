@@ -1,12 +1,17 @@
 package http
 
 import (
+	"errors"
 	"net/http"
 	"regexp"
 
 	"github.com/Sirupsen/logrus"
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/kildevaeld/dict"
-	_ "github.com/kildevaeld/filestore/filesystem"
+	"github.com/kildevaeld/filestore"
+	"github.com/kildevaeld/filestore/filesystem"
+	uuid "github.com/satori/go.uuid"
+
 	"github.com/kildevaeld/torsten"
 	"github.com/kildevaeld/torsten/thumbnail"
 	"github.com/labstack/echo"
@@ -23,6 +28,7 @@ type Options struct {
 	MaxRequestBody int `max_request_body`
 	Expires        int
 	Log            bool
+	JWTKey         []byte
 }
 
 type HttpServer struct {
@@ -40,8 +46,11 @@ func notFoundOr(ctx echo.Context, err error, json bool) error {
 		status = http.StatusNotFound
 	} else if err == torsten.ErrAlreadyExists {
 		status = http.StatusConflict
+	} else if err == filestore.ErrNotFound {
+		status = http.StatusNotFound
 	} else if err == nil {
-		return nil
+		status = http.StatusOK
+		err = errors.New("ok")
 	}
 
 	if json {
@@ -50,6 +59,25 @@ func notFoundOr(ctx echo.Context, err error, json bool) error {
 		})
 	}
 	return ctx.String(status, err.Error())
+}
+
+func (self *HttpServer) idsFromJWT(ctx echo.Context) (uid uuid.UUID, gid uuid.UUID) {
+
+	user := ctx.Get("user").(*jwt.Token)
+	claims := user.Claims.(jwt.MapClaims)
+	u := claims["uid"].(string)
+	g := claims["gid"].(string)
+
+	var err error
+	if uid, err = uuid.FromString(u); err != nil {
+		return uuid.Nil, uuid.Nil
+	}
+
+	if gid, err = uuid.FromString(g); err != nil {
+		return uuid.Nil, uuid.Nil
+	}
+
+	return
 }
 
 func (self *HttpServer) Listen(addr string) error {
@@ -65,7 +93,7 @@ func (self *HttpServer) Listen(addr string) error {
 
 func (self *HttpServer) listen(s engine.Server, addr string) error {
 	self.echo.SetDebug(true)
-
+	self.thumb.Start()
 	if self.o.Log {
 		self.echo.Use(NewWithNameAndLogger("torsten", self.log.WithField("prefix", "http")))
 	}
@@ -83,6 +111,11 @@ func (self *HttpServer) listen(s engine.Server, addr string) error {
 		}
 	})
 
+	if self.o.JWTKey != nil {
+		self.echo.Use(middleware.JWTWithConfig(middleware.JWTConfig{
+			SigningKey: self.o.JWTKey,
+		}))
+	}
 	/*self.echo.Use(middleware.JWTWithConfig(middleware.JWTConfig{
 		SigningKey: []byte("secret"),
 	}))*/
@@ -97,6 +130,7 @@ func (self *HttpServer) listen(s engine.Server, addr string) error {
 }
 
 func (self *HttpServer) Close() error {
+	self.thumb.Stop()
 	return self.echo.Stop()
 }
 
@@ -105,7 +139,14 @@ func New(t torsten.Torsten, o Options) *HttpServer {
 }
 
 func NewWithLogger(t torsten.Torsten, l logrus.FieldLogger, o Options) *HttpServer {
-	thumb := thumbnail.NewThumbnailer(t)
+
+	store, _ := filesystem.New(filesystem.Options{
+		Path: "./cache_path",
+	})
+
+	//store := memory.New()
+
+	thumb := thumbnail.NewThumbnailer(t, store)
 
 	return &HttpServer{
 		echo:    echo.New(),

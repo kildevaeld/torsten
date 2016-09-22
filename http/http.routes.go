@@ -23,29 +23,43 @@ func (self *HttpServer) handleFile(ctx echo.Context, options torsten.GetOptions,
 	)
 	header := ctx.Response().Header()
 
-	if IsTrue(ctx.QueryParam("thumbnail")) {
-		stat, err = self.thumb.GetThumbnail(stat, options)
-		if err != nil {
-			return notFoundOr(ctx, err, false)
-		}
+	var etag string
+	if stat.Sha1 != nil && len(stat.Sha1) > 0 {
+		etag = fmt.Sprintf(`"%x"`, stat.Sha1)
+	} else {
+		etag = fmt.Sprintf(`"%x"`, stat.Id)
+	}
 
+	isThumb := IsTrue(ctx.QueryParam("thumbnail"))
+	if isThumb {
+		etag = fmt.Sprintf(`"%s6464"`, etag)
 	}
 
 	if match := ctx.Request().Header().Get("If-None-Match"); match != "" {
-		if strings.Contains(match, fmt.Sprintf("%x", stat.Sha1)) {
+		if strings.Contains(match, etag) {
 			ctx.Response().WriteHeader(http.StatusNotModified)
 			return nil
 		}
 	}
 
-	reader, err = self.torsten.Open(stat, options)
-	if err != nil {
-		return notFoundOr(ctx, err, false)
+	if isThumb {
+		reader, err = self.thumb.GetThumbnail(stat, options)
+		if err != nil {
+			return notFoundOr(ctx, err, false)
+		}
+
+	} else {
+
+		reader, err = self.torsten.Open(stat, options)
+		if err != nil {
+			return notFoundOr(ctx, err, false)
+		}
 	}
+
 	defer reader.Close()
 
 	header.Set("Content-Type", stat.Mime)
-	header.Set("Content-Length", fmt.Sprintf("%d", stat.Size))
+	//header.Set("Content-Length", fmt.Sprintf("%d", stat.Size))
 
 	if IsTrue(ctx.QueryParam("download")) {
 		header.Set("Content-Description", "File Transfer")
@@ -55,7 +69,8 @@ func (self *HttpServer) handleFile(ctx echo.Context, options torsten.GetOptions,
 		header.Set("Cache-Control", "must-revalidate, post-check=0, pre-check=0")
 
 	} else if self.o.Expires > 0 {
-		header.Set("Etag", fmt.Sprintf(`"%x"`, stat.Sha1))
+
+		header.Set("Etag", etag)
 		header.Set("Cache-Control", fmt.Sprintf("max-age=%d", self.o.Expires))
 	}
 
@@ -69,6 +84,14 @@ func (self *HttpServer) handleFile(ctx echo.Context, options torsten.GetOptions,
 }
 
 func (self *HttpServer) handleFiles(ctx echo.Context) error {
+	etag := fmt.Sprintf(`"%x"`, []byte(ctx.Request().URI()))
+	if match := ctx.Request().Header().Get("If-None-Match"); match != "" {
+		if strings.Contains(match, etag) {
+			ctx.Response().WriteHeader(http.StatusNotModified)
+			return nil
+		}
+	}
+
 	path := "/" + ctx.ParamValues()[0]
 
 	options := torsten.GetOptions{
@@ -114,6 +137,7 @@ func (self *HttpServer) handleFiles(ctx echo.Context) error {
 
 		var files []torsten.FileInfo
 		o := self.getListOptions(ctx)
+
 		err = self.torsten.List(path, o, func(path string, node *torsten.FileInfo) error {
 			files = append(files, *node)
 			return nil
@@ -128,6 +152,10 @@ func (self *HttpServer) handleFiles(ctx echo.Context) error {
 			if len(files) == 0 {
 				files = []torsten.FileInfo{}
 			}
+			header := ctx.Response().Header()
+			header.Set("Etag", etag)
+			header.Set("Cache-Control", fmt.Sprintf("max-age=%d", 60))
+
 			return ctx.JSON(http.StatusOK, dict.Map{
 				"message": "ok",
 				"data":    files,
@@ -229,7 +257,7 @@ func (self HttpServer) getListOptions(ctx echo.Context) (o torsten.ListOptions) 
 		o.Hidden = true
 	}
 
-	if limit, err = strconv.Atoi("limit"); err == nil && limit > 0 {
+	if limit, err = strconv.Atoi(ctx.QueryParam("limit")); err == nil && limit > 0 {
 		o.Limit = int64(limit)
 	}
 

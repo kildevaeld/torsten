@@ -2,4 +2,5 @@
 path/
 *.sqlite
 torsten_path/
+cache_path
 .vscode

@@ -476,7 +476,7 @@ func (self *sqlmeta) Count(path string) (int64, error) {
 
 	sqli, args, err := sq.Select("count(*)").From(FileTable).
 		Join(fmt.Sprintf("%s fn ON fn.id = %s.node_id", FileNodeTable, FileTable)).
-		Where(sq.Eq{"fn.path": path}).ToSql()
+		Where(sq.Eq{"fn.path": normalizeDir(path)}).ToSql()
 
 	if err != nil {
 		return -1, err
@@ -486,6 +486,7 @@ func (self *sqlmeta) Count(path string) (int64, error) {
 	if err = self.db.Get(&count, sqli, args...); err != nil {
 		return -1, err
 	}
+	fmt.Printf("COUNT %d\n", count)
 
 	return count, nil
 
