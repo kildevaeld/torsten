@@ -2,6 +2,7 @@ package http
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"regexp"
 
@@ -100,20 +101,21 @@ func (self *HttpServer) listen(s engine.Server, addr string) error {
 	self.echo.Use(middleware.Recover())
 	self.echo.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		//AllowOrigins: []string{"https://labstack.com", "https://labstack.net"},
-		AllowHeaders:  []string{echo.HeaderOrigin, echo.HeaderContentType, "Link", "Accept"},
-		ExposeHeaders: []string{"Link", "X-Total-Count", "Content-Length"},
+		AllowHeaders:  []string{echo.HeaderOrigin, echo.HeaderContentType, "Link", "Accept", echo.HeaderAuthorization, "User-Agent", "X-Requested-With"},
+		ExposeHeaders: []string{"Link", "X-Total-Count", "Content-Length", echo.HeaderAuthorization, "Server"},
 	}))
 
 	self.echo.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			c.Response().Header().Set("server", "torsten")
+			c.Response().Header().Set("Server", "torsten 0.1")
 			return next(c)
 		}
 	})
 
 	if self.o.JWTKey != nil {
 		self.echo.Use(middleware.JWTWithConfig(middleware.JWTConfig{
-			SigningKey: self.o.JWTKey,
+			SigningKey:  self.o.JWTKey,
+			TokenLookup: "header:Authorization",
 		}))
 	}
 	/*self.echo.Use(middleware.JWTWithConfig(middleware.JWTConfig{
@@ -147,6 +149,9 @@ func NewWithLogger(t torsten.Torsten, l logrus.FieldLogger, o Options) *HttpServ
 	//store := memory.New()
 
 	thumb := thumbnail.NewThumbnailer(t, store)
+
+	s, _ := generateToken(o.JWTKey)
+	fmt.Printf("\n%s\n", s)
 
 	return &HttpServer{
 		echo:    echo.New(),

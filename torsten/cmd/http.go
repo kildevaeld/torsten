@@ -42,10 +42,12 @@ func init() {
 	httpCmd.Flags().BoolP("verbose", "v", false, "Show verbose output")
 	httpCmd.Flags().Int64("max-request-body", 20*1024*1024, "Maximum request body in bytes")
 	httpCmd.Flags().Int64("expires", 60*60*24*7, "Caching in seconds")
+	httpCmd.Flags().String("key", "", "key")
 	viper.BindPFlag("address", httpCmd.Flags().Lookup("address"))
 	viper.BindPFlag("verbose", httpCmd.Flags().Lookup("verbose"))
 	viper.BindPFlag("expires", httpCmd.Flags().Lookup("expires"))
 	viper.BindPFlag("max-request-body", httpCmd.Flags().Lookup("max-request-body"))
+	viper.BindPFlag("key", httpCmd.Flags().Lookup("key"))
 }
 
 func runHttp() error {
@@ -74,6 +76,7 @@ func runHttp() error {
 		Expires:        int(viper.GetInt64("expires")),
 		MaxRequestBody: int(viper.GetInt64("max-request-body")),
 		Log:            viper.GetBool("log-http"),
+		JWTKey:         []byte(viper.GetString("key")),
 	})
 
 	signal_chan := make(chan os.Signal, 1)
