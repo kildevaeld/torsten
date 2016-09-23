@@ -214,8 +214,8 @@ func (self *torsten) List(prefix string, options ListOptions, fn func(path strin
 	return self.meta.List(prefix, options, fn)
 }
 
-func (self *torsten) Count(path string) (int64, error) {
-	return self.meta.Count(path)
+func (self *torsten) Count(path string, options GetOptions) (int64, error) {
+	return self.meta.Count(path, options)
 }
 
 func (self *torsten) RegisterHook(hook Hook, fn HookFunc) {

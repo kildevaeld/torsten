@@ -62,23 +62,49 @@ func notFoundOr(ctx echo.Context, err error, json bool) error {
 	return ctx.String(status, err.Error())
 }
 
-func (self *HttpServer) idsFromJWT(ctx echo.Context) (uid uuid.UUID, gid uuid.UUID) {
+type id_pair struct {
+	uid uuid.UUID
+	gid []uuid.UUID
+}
 
+func (self *HttpServer) idsFromJWT(ctx echo.Context) (*id_pair, error) {
+	var (
+		uid uuid.UUID
+		gid uuid.UUID
+		err error
+		g   []interface{}
+		ok  bool
+		u   string
+		s   string
+	)
 	user := ctx.Get("user").(*jwt.Token)
 	claims := user.Claims.(jwt.MapClaims)
-	u := claims["uid"].(string)
-	g := claims["gid"].(string)
+	if u, ok = claims["uid"].(string); !ok {
+		return nil, errors.New("Invalid UID")
+	}
+	if g, ok = claims["gid"].([]interface{}); !ok {
+		fmt.Printf("%v - %T\n", claims, claims["gid"])
+		return nil, errors.New("Invalid GID")
+	}
 
-	var err error
 	if uid, err = uuid.FromString(u); err != nil {
-		return uuid.Nil, uuid.Nil
+		return nil, err
 	}
 
-	if gid, err = uuid.FromString(g); err != nil {
-		return uuid.Nil, uuid.Nil
+	var gids []uuid.UUID
+	for _, gwb := range g {
+		if s, ok = gwb.(string); !ok {
+			return nil, errors.New("Invalid")
+		}
+		if gid, err = uuid.FromString(s); err != nil {
+			return nil, err
+		}
+		gids = append(gids, gid)
 	}
 
-	return
+	pair := &id_pair{uid, gids}
+
+	return pair, nil
 }
 
 func (self *HttpServer) Listen(addr string) error {

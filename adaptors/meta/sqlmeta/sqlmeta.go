@@ -59,6 +59,19 @@ func (self *sqlmeta) init() error {
 		self.db.MustExec(st)
 	}
 
+	if self.db.DriverName() == "mysql" {
+		split = strings.Split(string(MustAsset("schemas/mysql_funtions.sql")), "|\n")
+		for _, str := range split {
+			fmt.Println(str)
+			if strings.TrimSpace(str) == "" {
+				continue
+			}
+
+			self.db.MustExec(str)
+		}
+
+	}
+
 	return nil
 }
 
@@ -235,13 +248,14 @@ func (self *sqlmeta) Get(path string, o torsten.GetOptions) (*torsten.FileInfo, 
 		builder = builder.Where(sq.Expr("CONCAT(fn.path, file_info.name) = ?", path))
 	}
 
-	builder = builder.Where(sq.Or{
+	/*builder = builder.Where(sq.Or{
 		sq.And{
 			sq.Or{sq.Eq{FileTable + ".uid": o.Uid}, sq.Eq{"file_info.gid": o.Gid}},
 			sq.Expr(fmt.Sprintf("(%s.perms & %d) <> 0", FileTable, OWNER_READ|GROUP_READ)),
 		},
 		sq.Expr(fmt.Sprintf("(%s.perms & %d) <> 0", FileTable, OTHER_READ)),
-	})
+	})*/
+	builder = self.buildReadPerms(FileTable, builder, o)
 
 	sqli, args, err := builder.ToSql()
 
@@ -259,6 +273,8 @@ func (self *sqlmeta) Get(path string, o torsten.GetOptions) (*torsten.FileInfo, 
 		}
 		dir := normalizeDir(path)
 		builder = sq.Select("*").From(FileNodeTable).Where(sq.Eq{"path": dir})
+		builder = self.buildReadPerms(FileNodeTable, builder, o)
+
 		if sqli, args, err = builder.ToSql(); err != nil {
 			panic(err)
 		}
@@ -271,6 +287,22 @@ func (self *sqlmeta) Get(path string, o torsten.GetOptions) (*torsten.FileInfo, 
 	}
 	file.Path = filepath.Dir(path)
 	return file.ToInfo()
+}
+
+func (self *sqlmeta) buildReadPerms(table string, builder sq.SelectBuilder, o torsten.GetOptions) sq.SelectBuilder {
+	var gids [][]byte
+
+	for _, g := range o.Gid {
+		gids = append(gids, g.Bytes())
+		//gids = append(gids, NewInfoID(g))
+	}
+	return builder.Where(sq.Or{
+		sq.And{
+			sq.Or{sq.Eq{table + ".uid": o.Uid}, sq.Eq{table + ".gid": gids}},
+			sq.Expr(fmt.Sprintf("(%s.perms & %d) <> 0", table, OWNER_READ|GROUP_READ)),
+		},
+		sq.Expr(fmt.Sprintf("(%s.perms & %d) <> 0", table, OTHER_READ)),
+	})
 }
 
 func (self *sqlmeta) List(prefix string, options torsten.ListOptions, fn func(path string, node *torsten.FileInfo) error) error {
@@ -287,6 +319,11 @@ func (self *sqlmeta) List(prefix string, options torsten.ListOptions, fn func(pa
 	if !options.Hidden {
 		builder = builder.Where(FileNodeTable+".hidden = ?", false)
 	}
+
+	builder = self.buildReadPerms(FileNodeTable, builder, torsten.GetOptions{
+		Uid: options.Uid,
+		Gid: options.Gid,
+	})
 
 	sqli, args, err := builder.ToSql()
 	if err != nil {
@@ -322,14 +359,17 @@ func (self *sqlmeta) List(prefix string, options torsten.ListOptions, fn func(pa
 	}
 
 	builder = builder.Offset(uint64(options.Offset)).Limit(uint64(options.Limit))
-
-	builder = builder.Where(sq.Or{
+	builder = self.buildReadPerms(FileTable, builder, torsten.GetOptions{
+		Uid: options.Uid,
+		Gid: options.Gid,
+	})
+	/*builder = builder.Where(sq.Or{
 		sq.And{
 			sq.Or{sq.Eq{FileTable + ".uid": options.Uid}, sq.Eq{"file_info.gid": options.Gid}},
 			sq.Expr(fmt.Sprintf("(%s.perms & %d) <> 0", FileTable, OWNER_READ|GROUP_READ)),
 		},
 		sq.Expr(fmt.Sprintf("(%s.perms & %d) <> 0", FileTable, OTHER_READ)),
-	})
+	})*/
 
 	sqli, args, err = builder.ToSql()
 	if err != nil {
@@ -472,12 +512,15 @@ func (self *sqlmeta) removeNodesIn(path string, o torsten.RemoveOptions, tx *sql
 	return out, paths, nil
 }
 
-func (self *sqlmeta) Count(path string) (int64, error) {
+func (self *sqlmeta) Count(path string, options torsten.GetOptions) (int64, error) {
 
-	sqli, args, err := sq.Select("count(*)").From(FileTable).
+	builder := sq.Select("count(*)").From(FileTable).
 		Join(fmt.Sprintf("%s fn ON fn.id = %s.node_id", FileNodeTable, FileTable)).
-		Where(sq.Eq{"fn.path": normalizeDir(path)}).ToSql()
+		Where(sq.Eq{"fn.path": normalizeDir(path)})
 
+	builder = self.buildReadPerms(FileTable, builder, options)
+
+	sqli, args, err := builder.ToSql()
 	if err != nil {
 		return -1, err
 	}
@@ -486,7 +529,6 @@ func (self *sqlmeta) Count(path string) (int64, error) {
 	if err = self.db.Get(&count, sqli, args...); err != nil {
 		return -1, err
 	}
-	fmt.Printf("COUNT %d\n", count)
 
 	return count, nil
 

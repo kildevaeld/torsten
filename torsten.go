@@ -44,6 +44,7 @@ func (mm MetaMap) Has(key string) bool {
 
 var ErrNotFound = errors.New("Not Found")
 var ErrAlreadyExists = errors.New("Already Exists")
+var ErrForbidden = errors.New("Forbidden")
 
 type HookFunc func(Hook, string, *FileInfo) error
 type CreateHookFunc func(*FileInfo, io.WriteCloser) (io.WriteCloser, error)
@@ -126,7 +127,7 @@ type MetaAdaptor interface {
 	Get(path string, options GetOptions) (*FileInfo, error)
 	List(prefix string, options ListOptions, fn func(path string, node *FileInfo) error) error
 	Remove(path string, options RemoveOptions) error
-	Count(path string) (int64, error)
+	Count(path string, options GetOptions) (int64, error)
 }
 
 type Torsten interface {
@@ -142,7 +143,7 @@ type Torsten interface {
 	Stat(path interface{}, options GetOptions) (*FileInfo, error)
 	List(prefix string, options ListOptions, fn func(path string, node *FileInfo) error) error
 
-	Count(path string) (int64, error)
+	Count(path string, options GetOptions) (int64, error)
 	RegisterHook(hook Hook, fn HookFunc)
 	RegisterCreateHook(fn CreateHookFunc)
 }

@@ -98,13 +98,17 @@ func (self *HttpServer) handleFiles(ctx echo.Context) error {
 
 	path := "/" + ctx.ParamValues()[0]
 
+	pair, err := self.idsFromJWT(ctx)
+	if err != nil {
+		return notFoundOr(ctx, err, true)
+	}
+
 	options := torsten.GetOptions{
-		Gid: []uuid.UUID{uuid.NewV4()},
-		Uid: uuid.NewV4(),
+		Gid: pair.gid,
+		Uid: pair.uid,
 	}
 
 	var stat *torsten.FileInfo
-	var err error
 
 	if idStr := ctx.QueryParam("id"); idStr != "" {
 		var id uuid.UUID
@@ -140,7 +144,8 @@ func (self *HttpServer) handleFiles(ctx echo.Context) error {
 
 	var files []torsten.FileInfo
 	o := self.getListOptions(ctx)
-
+	o.Gid = options.Gid
+	o.Uid = options.Uid
 	err = self.torsten.List(path, o, func(path string, node *torsten.FileInfo) error {
 		files = append(files, *node)
 		return nil
@@ -170,7 +175,10 @@ func (self *HttpServer) handleFiles(ctx echo.Context) error {
 
 func (self *HttpServer) genLinks(ctx echo.Context, o torsten.ListOptions, path string) error {
 
-	count, err := self.torsten.Count(path)
+	count, err := self.torsten.Count(path, torsten.GetOptions{
+		Uid: o.Uid,
+		Gid: o.Gid,
+	})
 	if err != nil {
 		return err
 	}
@@ -249,8 +257,6 @@ func (self HttpServer) getListOptions(ctx echo.Context) (o torsten.ListOptions) 
 		limit int
 		err   error
 	)
-	o.Uid = uuid.NewV4()
-	o.Gid = []uuid.UUID{uuid.NewV4()}
 
 	o.Limit = 50
 	o.Offset = 0
@@ -284,11 +290,17 @@ func (self HttpServer) getListOptions(ctx echo.Context) (o torsten.ListOptions) 
 
 func (self *HttpServer) handleUpload(ctx echo.Context) error {
 
+	pairs, err := self.idsFromJWT(ctx)
+	if err != nil {
+		return notFoundOr(ctx, err, true)
+	}
 	path := "/" + ctx.ParamValues()[0]
 	contentType := ctx.Request().Header().Get("Content-Type")
 
 	var reader io.ReadCloser
 	options := self.getCreateOptions(ctx)
+	options.Uid = pairs.uid
+	options.Gid = pairs.gid[0]
 
 	if strings.HasPrefix(contentType, "multipart/form-data") {
 		file, err := ctx.FormFile(FileField)
