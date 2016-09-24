@@ -97,7 +97,7 @@ func (self Node) ToInfo() (*torsten.FileInfo, error) {
 		Uid:   self.Uid.Id,
 		Mode:  os.FileMode(self.Mode),
 		IsDir: true,
-		Path:  filepath.Dir(self.Path),
+		Path:  normalizeDir(filepath.Dir(self.Path)),
 	}, nil
 }
 

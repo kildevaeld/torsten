@@ -74,6 +74,8 @@ func initConfig() {
 	if viper.GetBool("verbose") {
 		logger.Level = logrus.DebugLevel
 		logger.Formatter = new(prefixed.TextFormatter)
+	} else {
+		logger.Level = logrus.InfoLevel
 	}
 
 	///viper.AutomaticEnv()            // read in environment variables that match

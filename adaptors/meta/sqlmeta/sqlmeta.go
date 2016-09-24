@@ -62,7 +62,7 @@ func (self *sqlmeta) init() error {
 	if self.db.DriverName() == "mysql" {
 		split = strings.Split(string(MustAsset("schemas/mysql_funtions.sql")), "|\n")
 		for _, str := range split {
-			fmt.Println(str)
+
 			if strings.TrimSpace(str) == "" {
 				continue
 			}
@@ -285,7 +285,7 @@ func (self *sqlmeta) Get(path string, o torsten.GetOptions) (*torsten.FileInfo, 
 
 		return node.ToInfo()
 	}
-	file.Path = filepath.Dir(path)
+	file.Path = normalizeDir(filepath.Dir(path))
 	return file.ToInfo()
 }
 
