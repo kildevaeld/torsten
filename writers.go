@@ -133,6 +133,7 @@ func (self *writer) Write(bs []byte) (int, error) {
 	if self.err != nil {
 		return 0, self.err
 	}
+	self.hash.Write(bs)
 	return self.buf.Write(bs)
 }
 
