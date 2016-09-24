@@ -83,7 +83,7 @@ func (self *HttpServer) idsFromJWT(ctx echo.Context) (*id_pair, error) {
 		return nil, errors.New("Invalid UID")
 	}
 	if g, ok = claims["gid"].([]interface{}); !ok {
-		fmt.Printf("%v - %T\n", claims, claims["gid"])
+
 		return nil, errors.New("Invalid GID")
 	}
 
