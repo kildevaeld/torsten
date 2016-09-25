@@ -7,6 +7,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 
@@ -233,18 +234,21 @@ func (self *HttpServer) getCreateOptions(ctx echo.Context) (o torsten.CreateOpti
 		o.Overwrite = true
 	}
 
+	if mode, err := strconv.Atoi(ctx.QueryParam("mode")); err == nil && mode != 0 {
+		o.Mode = os.FileMode(mode)
+	}
+
 	if size, err := strconv.Atoi(ctx.FormValue("size")); err != nil {
 		o.Size = int64(size)
 	}
-	if isTrueRegex.Match([]byte(ctx.FormValue("overwrite"))) {
-		o.Overwrite = true
+
+	if mode, err := strconv.Atoi(ctx.FormValue("mode")); err != nil && mode != 0 {
+		o.Mode = os.FileMode(mode)
 	}
 
 	if mime := ctx.FormValue("mime"); mime != "" {
 		o.Mime = mime
 	}
-	o.Uid = uuid.NewV4()
-	o.Gid = uuid.NewV4()
 
 	return o
 }
