@@ -46,7 +46,6 @@ func (self *torsten) Create(path string, opts CreateOptions) (io.WriteCloser, er
 		Name:   name,
 		Hidden: strings.HasPrefix(name, "."),
 		Meta:   opts.Meta,
-		Mode:   opts.Mode,
 	}
 	if info.Meta == nil {
 		info.Meta = MetaMap{}
