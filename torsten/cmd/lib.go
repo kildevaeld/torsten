@@ -43,7 +43,7 @@ func getTorsten() (torsten.Torsten, error) {
 
 	if fsOptions.Driver == "" {
 		fsOptions.Driver = "filesystem"
-		fsOptions.DriverOptions = "./torsten_path"
+		fsOptions.Options = "./torsten_path"
 	}
 
 	//var metaOptions sqlmeta.Options

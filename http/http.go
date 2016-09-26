@@ -138,7 +138,7 @@ func (self *HttpServer) listen(s engine.Server, addr string) error {
 		}
 	})
 
-	if self.o.JWTKey != nil {
+	if self.o.JWTKey != nil && len(self.o.JWTKey) > 0 {
 		self.echo.Use(middleware.JWTWithConfig(middleware.JWTConfig{
 			SigningKey:  self.o.JWTKey,
 			TokenLookup: "header:Authorization",

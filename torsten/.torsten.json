@@ -1,7 +1,7 @@
 {
 	"filestore": {
 		"driver": "filesystem",
-		"driveroptions": "torsten_path"
+		"options": "torsten_path"
 	} ,
 	"metastore": {
 		"driver": "sqlite3",

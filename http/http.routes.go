@@ -1,6 +1,7 @@
 package http
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -223,34 +224,40 @@ func (self *HttpServer) genLinks(ctx echo.Context, o torsten.ListOptions, path s
 	return nil
 }
 
-func (self *HttpServer) getCreateOptions(ctx echo.Context) (o torsten.CreateOptions) {
-	o.Mime = ctx.QueryParam("mime")
+func (self *HttpServer) formOrParams(ctx echo.Context, str string) string {
+	if s := ctx.FormValue(str); s != "" {
+		return s
+	} else {
+		return ctx.QueryParam(str)
+	}
+}
 
-	if size, err := strconv.Atoi(ctx.QueryParam("size")); err == nil {
+func (self *HttpServer) getCreateOptions(ctx echo.Context) (o torsten.CreateOptions, err error) {
+
+	o.Mime = self.formOrParams(ctx, "mime")
+
+	if size, err := strconv.Atoi(self.formOrParams(ctx, "size")); err == nil {
 		o.Size = int64(size)
 	}
 
-	if isTrueRegex.Match([]byte(ctx.QueryParam("overwrite"))) {
+	if isTrueRegex.Match([]byte(self.formOrParams(ctx, "overwrite"))) {
 		o.Overwrite = true
 	}
 
-	if mode, err := strconv.Atoi(ctx.QueryParam("mode")); err == nil && mode != 0 {
+	if mode, err := strconv.Atoi(self.formOrParams(ctx, "mode")); err == nil && mode != 0 {
 		o.Mode = os.FileMode(mode)
 	}
 
-	if size, err := strconv.Atoi(ctx.FormValue("size")); err != nil {
-		o.Size = int64(size)
+	meta := self.formOrParams(ctx, "meta")
+	if meta != "" {
+		var out map[string]interface{}
+		if err = json.Unmarshal([]byte(meta), &out); err != nil {
+			return o, err
+		}
+		o.Meta = out
 	}
 
-	if mode, err := strconv.Atoi(ctx.FormValue("mode")); err != nil && mode != 0 {
-		o.Mode = os.FileMode(mode)
-	}
-
-	if mime := ctx.FormValue("mime"); mime != "" {
-		o.Mime = mime
-	}
-
-	return o
+	return o, nil
 }
 
 func (self HttpServer) getListOptions(ctx echo.Context) (o torsten.ListOptions) {
@@ -301,8 +308,14 @@ func (self *HttpServer) handleUpload(ctx echo.Context) error {
 	path := "/" + ctx.ParamValues()[0]
 	contentType := ctx.Request().Header().Get("Content-Type")
 
-	var reader io.ReadCloser
-	options := self.getCreateOptions(ctx)
+	var (
+		reader  io.ReadCloser
+		options torsten.CreateOptions
+	)
+
+	if options, err = self.getCreateOptions(ctx); err != nil {
+		return err
+	}
 	options.Uid = pairs.uid
 	options.Gid = pairs.gid[0]
 
