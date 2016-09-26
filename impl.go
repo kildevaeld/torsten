@@ -24,7 +24,7 @@ type torsten struct {
 	log         logrus.FieldLogger
 }
 
-func (self *torsten) Create(path string, opts CreateOptions, so ...interface{}) (io.WriteCloser, error) {
+func (self *torsten) Create(path string, opts CreateOptions) (io.WriteCloser, error) {
 	var e error
 	if _, e = self.Stat(path, GetOptions{[]uuid.UUID{opts.Gid}, opts.Uid}); e == nil && opts.Overwrite == false {
 		return nil, ErrAlreadyExists
@@ -46,9 +46,14 @@ func (self *torsten) Create(path string, opts CreateOptions, so ...interface{}) 
 		Name:   name,
 		Hidden: strings.HasPrefix(name, "."),
 		Meta:   opts.Meta,
+		Mode:   opts.Mode,
 	}
 	if info.Meta == nil {
 		info.Meta = MetaMap{}
+	}
+
+	if info.Mode == 0 {
+		info.Mode = 500
 	}
 
 	self.states.Lock([]byte(path))

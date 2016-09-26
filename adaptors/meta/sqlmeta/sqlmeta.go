@@ -116,9 +116,9 @@ func (self *sqlmeta) insertIn(path string, info *torsten.FileInfo, tx *sqlx.Tx) 
 	}
 
 	sqli, args, err = sq.Insert(FileTable).
-		Columns("name", "size", "mime_type", "uid", "gid", "sha1", "id", "meta", "node_id", "hidden").
+		Columns("name", "size", "mime_type", "uid", "gid", "sha1", "id", "meta", "node_id", "hidden", "perms").
 		Values(info.Name, info.Size, info.Mime, NewInfoID(info.Uid), NewInfoID(info.Gid), info.Sha1, NewInfoID(info.Id),
-			info.Meta, parent, info.Hidden).ToSql()
+			info.Meta, parent, info.Hidden, info.Mode).ToSql()
 
 	if err != nil {
 		tx.Rollback()

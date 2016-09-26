@@ -252,7 +252,7 @@ func (self *HttpServer) getCreateOptions(ctx echo.Context) (o torsten.CreateOpti
 	if meta != "" {
 		var out map[string]interface{}
 		if err = json.Unmarshal([]byte(meta), &out); err != nil {
-			return o, err
+			return o, fmt.Errorf("META: %s", err)
 		}
 		o.Meta = out
 	}
