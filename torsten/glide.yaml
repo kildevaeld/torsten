@@ -1,0 +1,20 @@
+package: github.com/kildevaeld/torsten/torsten
+import:
+- package: github.com/Sirupsen/logrus
+  version: ^0.10.0
+- package: github.com/go-sql-driver/mysql
+  version: ^1.2.0
+- package: github.com/kildevaeld/filestore
+  subpackages:
+  - filesystem
+  - memory
+  - s3
+- package: github.com/kildevaeld/torsten
+  subpackages:
+  - adaptors/meta/sqlmeta
+  - http
+- package: github.com/mattn/go-sqlite3
+  version: ^1.1.0
+- package: github.com/spf13/cobra
+- package: github.com/spf13/viper
+- package: github.com/x-cray/logrus-prefixed-formatter

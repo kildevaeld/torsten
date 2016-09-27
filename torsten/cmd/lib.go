@@ -2,10 +2,10 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"os"
 
-	"github.com/Sirupsen/logrus"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/kildevaeld/filestore"
 	_ "github.com/kildevaeld/filestore/filesystem"
@@ -15,8 +15,17 @@ import (
 	"github.com/kildevaeld/torsten/adaptors/meta/sqlmeta"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/viper"
-	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 )
+
+type Options struct {
+	Filestore      filestore.Options `json:"filestore"`
+	Metastore      sqlmeta.Options   `json:"metastore"`
+	Host           string            `json:"host"`
+	Key            string            `json:"key"`
+	Expires        int               `json:"expires"`
+	MaxRequestBody int               `json:"max_request_body`
+	Debug          bool
+}
 
 func printError(err error) {
 	if err != nil {
@@ -26,70 +35,79 @@ func printError(err error) {
 
 }
 
-func getTorsten() (torsten.Torsten, error) {
+type Environ []string
+
+func (self *Environ) Add(env ...string) {
+	*self = append(*self, env...)
+}
+
+func (self Environ) ToMap() map[string]string {
+	env := make(map[string]string)
+	for _, e := range self {
+		a := strings.SplitN(e, "=", 2)
+		env[a[0]] = a[1]
+	}
+	return env
+}
+
+func MapToEnviron(m map[string]string) Environ {
+	var out Environ
+	for k, v := range m {
+		out = append(out, k+"="+v)
+	}
+	return out
+}
+
+func getTorsten() (torsten.Torsten, Options, error) {
 	var (
-		fsOptions   filestore.Options
-		metaOptions sqlmeta.Options
-		fs          filestore.Store
-		meta        torsten.MetaAdaptor
-		err         error
+		fs   filestore.Store
+		meta torsten.MetaAdaptor
+		err  error
 	)
 
 	//var fsOptions filestore.Options
 
-	if err = viper.UnmarshalKey("filestore", &fsOptions); err != nil {
-		return nil, err
+	var options Options
+	if err = viper.Unmarshal(&options); err != nil {
+		return nil, options, err
 	}
 
-	if fsOptions.Driver == "" {
-		fsOptions.Driver = "filesystem"
-		fsOptions.Options = "./torsten_path"
+	if options.Filestore.Driver == "" {
+		options.Filestore.Driver = "filesystem"
+		options.Filestore.Options = "./torsten_path"
 	}
 
-	//var metaOptions sqlmeta.Options
+	env := Environ(os.Environ()).ToMap()
 
-	if err = viper.UnmarshalKey("metastore", &metaOptions); err != nil {
-		return nil, err
+	if fs, ok := env["TORSTEN_FILESTORE_DRIVER"]; ok {
+		options.Filestore.Driver = fs
+	}
+	if fs, ok := env["TORSTEN_FILESTORE_OPTIONS"]; ok {
+		options.Filestore.Options = fs
+	}
+	if m, ok := env["TORSTEN_METASTORE_DRIVER"]; ok {
+		options.Metastore.Driver = m
+	}
+	if m, ok := env["TORSTEN_METASTORE_OPTIONS"]; ok {
+		options.Metastore.Options = m
 	}
 
-	if fs, err = filestore.New(fsOptions); err != nil {
-		return nil, err
+	if fs, err = filestore.New(options.Filestore); err != nil {
+		return nil, options, err
 	}
 
-	if metaOptions.Driver == "" {
-		metaOptions.Driver = "sqlite3"
+	if options.Metastore.Driver == "" {
+		options.Metastore.Driver = "sqlite3"
 	}
-	if metaOptions.Options == "" {
-		metaOptions.Options = "./test.sqlite"
+	if options.Metastore.Options == "" {
+		options.Metastore.Options = "./test.sqlite"
 	}
 
-	if meta, err = sqlmeta.NewWithLogger(metaOptions, logger.WithField("prefix", "meta")); err != nil {
-		return nil, err
+	if meta, err = sqlmeta.NewWithLogger(options.Metastore, logger.WithField("prefix", "meta")); err != nil {
+		return nil, options, err
 	}
 
 	t := torsten.NewWithLogger(fs, meta, logger)
 
-	//i, e := meta.Clean(time.Now())
-	/*hook := func(hook torsten.Hook, path string, info *torsten.FileInfo) error {
-		fmt.Printf("%s: %s\n", hook.String(), path)
-		return nil
-	}
-	t.RegisterHook(torsten.PostCreate, hook)
-	t.RegisterHook(torsten.PreCreate, hook)
-	t.RegisterHook(torsten.PreGet, hook)
-	t.RegisterHook(torsten.PostGet, hook)*/
-
-	/*t.RegisterCreateHook(func(i *torsten.FileInfo, w io.WriteCloser) (io.WriteCloser, error) {
-		fmt.Printf("Create Hook:\n")
-		return w, nil
-	})*/
-	return t, nil
-}
-
-func getLogger() (*logrus.Logger, error) {
-
-	log := logrus.New()
-	log.Formatter = new(prefixed.TextFormatter)
-
-	return log, nil
+	return t, options, nil
 }

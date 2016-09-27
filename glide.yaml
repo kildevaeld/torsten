@@ -1,0 +1,37 @@
+package: github.com/kildevaeld/torsten
+import:
+- package: bitbucket.org/taruti/mimemagic
+- package: github.com/Masterminds/squirrel
+- package: github.com/Sirupsen/logrus
+  version: ^0.10.0
+- package: github.com/dgrijalva/jwt-go
+  version: ^3.0.0
+- package: github.com/go-sql-driver/mysql
+  version: ^1.2.0
+- package: github.com/jmoiron/sqlx
+- package: github.com/kildevaeld/dict
+- package: github.com/kildevaeld/filestore
+  subpackages:
+  - filesystem
+  - memory
+  - s3
+- package: github.com/labstack/echo
+  version: ^2.1.0
+  subpackages:
+  - engine
+  - engine/fasthttp
+  - middleware
+- package: github.com/mattn/go-sqlite3
+  version: ^1.1.0
+- package: github.com/nfnt/resize
+- package: github.com/rakyll/magicmime
+- package: github.com/satori/go.uuid
+  version: ^1.1.0
+- package: github.com/spf13/cobra
+- package: github.com/spf13/viper
+- package: github.com/x-cray/logrus-prefixed-formatter
+testImport:
+- package: github.com/stretchr/testify
+  version: ^1.1.4
+  subpackages:
+  - assert

@@ -1,4 +1,4 @@
 #!/bin/bash
-
-
-docker run --rm -v "$PWD":/go/bin blang/golang-alpine go get -x github.com/kildevaeld/torsten/torsten
+parent=`dirname $PWD`
+echo $parent
+docker run --rm -v "$parent":/go/src/github.com/kildevaeld/torsten -w /go/src/github.com/kildevaeld/torsten/torsten -ti blang/golang-alpine sh

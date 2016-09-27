@@ -2,7 +2,6 @@ package http
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"regexp"
 
@@ -119,11 +118,13 @@ func (self *HttpServer) Listen(addr string) error {
 }
 
 func (self *HttpServer) listen(s engine.Server, addr string) error {
-	self.echo.SetDebug(true)
+
 	self.thumb.Start()
+
 	if self.o.Log {
 		self.echo.Use(NewWithNameAndLogger("torsten", self.log.WithField("prefix", "http")))
 	}
+
 	self.echo.Use(middleware.Recover())
 	self.echo.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		//AllowOrigins: []string{"https://labstack.com", "https://labstack.net"},
@@ -172,16 +173,11 @@ func NewWithLogger(t torsten.Torsten, l logrus.FieldLogger, o Options) *HttpServ
 		Path: "./cache_path",
 	})
 
-	//store := memory.New()
-
 	thumb := thumbnail.NewThumbnailer(t, store)
-
-	s, _ := generateToken(o.JWTKey)
-	fmt.Printf("\n%s\n", s)
 
 	return &HttpServer{
 		echo:    echo.New(),
-		torsten: t, //torsten.New(data, meta),
+		torsten: t,
 		log:     l,
 		thumb:   thumb,
 		o:       o,

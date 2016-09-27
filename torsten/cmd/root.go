@@ -69,11 +69,14 @@ func initConfig() {
 		viper.AddConfigPath("$HOME")    // adding home directory as first search path
 	}
 
-	logger = logrus.New()
+	viper.AutomaticEnv()
+	viper.SetEnvPrefix("TORSTEN")
 
-	if viper.GetBool("verbose") {
+	logger = logrus.New()
+	logger.Formatter = new(prefixed.TextFormatter)
+	if viper.GetBool("Debug") {
 		logger.Level = logrus.DebugLevel
-		logger.Formatter = new(prefixed.TextFormatter)
+
 	} else {
 		logger.Level = logrus.InfoLevel
 	}

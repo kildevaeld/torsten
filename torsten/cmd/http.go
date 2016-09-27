@@ -38,45 +38,47 @@ var httpCmd = &cobra.Command{
 func init() {
 	RootCmd.AddCommand(httpCmd)
 
-	httpCmd.Flags().StringP("address", "a", ":3000", "address")
-	httpCmd.Flags().BoolP("verbose", "v", false, "Show verbose output")
+	httpCmd.Flags().StringP("host", "H", ":3000", "address")
+	httpCmd.Flags().BoolP("debug", "d", false, "Show verbose output")
 	httpCmd.Flags().Int64("max-request-body", 20*1024*1024, "Maximum request body in bytes")
 	httpCmd.Flags().Int64("expires", 60*60*24*7, "Caching in seconds")
 	httpCmd.Flags().String("key", "", "key")
-	viper.BindPFlag("address", httpCmd.Flags().Lookup("address"))
-	viper.BindPFlag("verbose", httpCmd.Flags().Lookup("verbose"))
-	viper.BindPFlag("expires", httpCmd.Flags().Lookup("expires"))
-	viper.BindPFlag("max-request-body", httpCmd.Flags().Lookup("max-request-body"))
-	viper.BindPFlag("key", httpCmd.Flags().Lookup("key"))
+
+	flags := httpCmd.Flags()
+	flags.String("filestore", "filesystem", "Filestore to use")
+	flags.String("filestore-options", "./torsten_path", "Options")
+	flags.String("metastore", "sqlite3", "")
+	flags.String("metastore-options", "./torsten_database.sqlite", "")
+
+	viper.BindPFlag("Host", httpCmd.Flags().Lookup("host"))
+	viper.BindPFlag("Debug", httpCmd.Flags().Lookup("debug"))
+	viper.BindPFlag("Expires", httpCmd.Flags().Lookup("expires"))
+	viper.BindPFlag("MaxRequestBody", httpCmd.Flags().Lookup("max-request-body"))
+	viper.BindPFlag("Key", httpCmd.Flags().Lookup("key"))
+
+	viper.BindPFlag("Filestore.Driver", flags.Lookup("filestore"))
+	viper.BindPFlag("Filestore.Options", flags.Lookup("filestore-options"))
+	viper.BindPFlag("Metastore.Driver", flags.Lookup("metastore"))
+	viper.BindPFlag("Metastore.Options", flags.Lookup("metastore-options"))
 }
 
 func runHttp() error {
 	var (
 		tors torsten.Torsten
+		opts Options
 		err  error
 		serv *http.HttpServer
 	)
 
-	if tors, err = getTorsten(); err != nil {
+	if tors, opts, err = getTorsten(); err != nil {
 		return err
 	}
-
-	//tors.RegisterCreateHook(hooks.ImageHook())
-
-	/*if log, err = getLogger(); err != nil {
-		return err
-	}
-	if viper.GetBool("verbose") {
-		log.Level = logrus.DebugLevel
-	} else {
-		log.Level = logrus.WarnLevel
-	}*/
 
 	serv = http.NewWithLogger(tors, logger.WithField("prefix", "http"), http.Options{
-		Expires:        int(viper.GetInt64("expires")),
-		MaxRequestBody: int(viper.GetInt64("max-request-body")),
-		Log:            viper.GetBool("log-http"),
-		JWTKey:         []byte(viper.GetString("key")),
+		Expires:        opts.Expires,
+		MaxRequestBody: opts.MaxRequestBody,
+		Log:            opts.Debug,
+		JWTKey:         []byte(opts.Key),
 	})
 
 	signal_chan := make(chan os.Signal, 1)
@@ -89,7 +91,7 @@ func runHttp() error {
 	exit_chan := make(chan error)
 
 	go func() {
-		exit_chan <- serv.Listen(viper.GetString("address"))
+		exit_chan <- serv.Listen(opts.Host)
 	}()
 
 	go func() {
