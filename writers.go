@@ -126,6 +126,7 @@ type writer struct {
 	err     error
 	is_init bool
 	done    func(error) error
+	wDone   chan struct{}
 }
 
 func (self *writer) Write(bs []byte) (int, error) {
@@ -149,6 +150,7 @@ func (self *writer) init() error {
 			Size:     self.info.Size,
 		})
 		self.err = err
+		self.wDone <- struct{}{}
 	}()
 	self.is_init = true
 	return nil
@@ -166,6 +168,8 @@ func (self *writer) Close() error {
 
 	self.info.Sha1 = self.hash.Sum(self.info.Sha1)
 
+	<-self.wDone
+	close(self.wDone)
 	if self.err != nil {
 		return self.err
 	}
@@ -185,6 +189,7 @@ func newWriter(t *torsten, path string, info *FileInfo, done func(error) error) 
 		info:    info,
 		buf:     buf,
 		hash:    NewHashWriter(buf, sha1.New()),
+		wDone:   make(chan struct{}),
 		done:    done,
 	}
 }

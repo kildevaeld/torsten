@@ -97,10 +97,17 @@ func (self *HttpServer) handleFiles(ctx echo.Context) error {
 			return nil
 		}
 	}*/
-
+	var (
+		err  error
+		pair *id_pair
+	)
 	path := "/" + ctx.ParamValues()[0]
 
-	pair, err := self.idsFromJWT(ctx)
+	if path, err = url.QueryUnescape(path); err != nil {
+		return notFoundOr(ctx, err, true)
+	}
+
+	pair, err = self.idsFromJWT(ctx)
 	if err != nil {
 		return notFoundOr(ctx, err, true)
 	}
@@ -305,7 +312,11 @@ func (self *HttpServer) handleUpload(ctx echo.Context) error {
 	if err != nil {
 		return notFoundOr(ctx, err, true)
 	}
+
 	path := "/" + ctx.ParamValues()[0]
+	if path, err = url.QueryUnescape(path); err != nil {
+		return notFoundOr(ctx, err, true)
+	}
 	contentType := ctx.Request().Header().Get("Content-Type")
 
 	var (
@@ -392,20 +403,47 @@ func (self *HttpServer) handleUpload(ctx echo.Context) error {
 }
 
 func (self *HttpServer) handleDeleteFile(ctx echo.Context) error {
+	var (
+		stat  *torsten.FileInfo
+		pairs *id_pair
+		err   error
+	)
 	path := "/" + ctx.ParamValues()[0]
-
-	stat, err := self.torsten.Stat(path, torsten.GetOptions{})
-	if err != nil {
-		return err
+	if path, err = url.QueryUnescape(path); err != nil {
+		return notFoundOr(ctx, err, true)
 	}
 
+	if pairs, err = self.idsFromJWT(ctx); err != nil {
+		return notFoundOr(ctx, err, true)
+	}
+
+	if stat, err = self.torsten.Stat(path, torsten.GetOptions{
+		Uid: pairs.uid,
+		Gid: pairs.gid,
+	}); err != nil {
+		return notFoundOr(ctx, err, true)
+	}
+
+	removeAll := isTrueRegex.Match([]byte(self.formOrParams(ctx, "remove_all")))
+
 	if stat.IsDir {
-		if err := self.torsten.RemoveAll(path, torsten.RemoveOptions{}); err != nil {
+		if !removeAll {
+			return ctx.JSON(http.StatusForbidden, dict.Map{
+				"message": "Cannot remove entire directory",
+			})
+		}
+		if err := self.torsten.RemoveAll(path, torsten.RemoveOptions{
+			Uid: pairs.uid,
+			Gid: pairs.gid,
+		}); err != nil {
 			return notFoundOr(ctx, err, true)
 		}
 	} else {
 
-		if err := self.torsten.Remove(path, torsten.RemoveOptions{}); err != nil {
+		if err := self.torsten.Remove(path, torsten.RemoveOptions{
+			Uid: pairs.uid,
+			Gid: pairs.gid,
+		}); err != nil {
 			return notFoundOr(ctx, err, true)
 		}
 	}
