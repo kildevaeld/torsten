@@ -162,16 +162,12 @@ func (self *torsten) RemoveAll(path string, o RemoveOptions) error {
 }
 
 func (self *torsten) Open(pathOrIdOrInfo interface{}, o GetOptions) (io.ReadCloser, error) {
-	/*var (
-		stat *FileInfo
-		err  error
-	)
-	if stat, err = self.infoFromInterface(pathOrIdOrInfo, o); err != nil {
-		return nil, err
-	}
 
-	return self.data.Get([]byte(stat.FullPath()))*/
-	return new_lockedreader(self, pathOrIdOrInfo, o)
+	reader, err := new_lockedreader(self, pathOrIdOrInfo, o)
+	if err != nil {
+		return nil, self.notFoundOrLog(err)
+	}
+	return reader, nil
 
 }
 
@@ -214,7 +210,7 @@ func (self *torsten) Stat(pathOtId interface{}, o GetOptions) (*FileInfo, error)
 	)
 
 	if stat, err = self.infoFromInterface(pathOtId, o); err != nil {
-		return nil, err
+		return nil, self.notFoundOrLog(err)
 	}
 
 	/*if self.states.HasLock(path) {
