@@ -108,6 +108,7 @@ func (self *HttpServer) handleFiles(ctx echo.Context) error {
 	}
 
 	pair, err = self.idsFromJWT(ctx)
+
 	if err != nil {
 		return notFoundOr(ctx, err, true)
 	}

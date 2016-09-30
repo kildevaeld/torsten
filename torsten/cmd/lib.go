@@ -25,6 +25,7 @@ type Options struct {
 	Expires        int               `json:"expires"`
 	MaxRequestBody int               `json:"max_request_body`
 	Debug          bool
+	HttpLog        bool
 }
 
 func printError(err error) {

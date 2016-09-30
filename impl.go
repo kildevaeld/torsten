@@ -14,6 +14,14 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
+func (self *torsten) notFoundOrLog(err error) error {
+	if err == ErrNotFound {
+		return err
+	}
+	self.log.WithError(err).Errorf("Unexcepted error %v", err)
+	return err
+}
+
 type torsten struct {
 	data        filestore.Store
 	meta        MetaAdaptor
@@ -25,12 +33,12 @@ type torsten struct {
 }
 
 func (self *torsten) Create(path string, opts CreateOptions) (io.WriteCloser, error) {
-	var e error
-	if _, e = self.Stat(path, GetOptions{[]uuid.UUID{opts.Gid}, opts.Uid}); e == nil && opts.Overwrite == false {
+	var err error
+	if _, err = self.Stat(path, GetOptions{[]uuid.UUID{opts.Gid}, opts.Uid}); err == nil && opts.Overwrite == false {
 		return nil, ErrAlreadyExists
-	} else if e == nil {
-		if e = self.Remove(path, RemoveOptions{[]uuid.UUID{opts.Gid}, opts.Uid}); e != nil {
-			return nil, fmt.Errorf("remove: %s", e)
+	} else if err == nil {
+		if err = self.Remove(path, RemoveOptions{[]uuid.UUID{opts.Gid}, opts.Uid}); err != nil {
+			return nil, fmt.Errorf("remove: %s", err)
 		}
 	}
 
@@ -59,13 +67,16 @@ func (self *torsten) Create(path string, opts CreateOptions) (io.WriteCloser, er
 	defer self.states.Unlock([]byte(path))
 
 	if err := self.runHook(PreCreate, path, info); err != nil {
+		self.log.WithError(err).Debug("Precreate hook returned an error")
 		return nil, err
 	}
 
 	var writer io.WriteCloser = newWriter(self, path, info, func(err error) error {
 
 		if err != nil {
-
+			self.log.WithError(err).WithFields(logrus.Fields{
+				"info": info,
+			}).Debug("Writer returned an error")
 			return err
 		}
 
@@ -85,24 +96,22 @@ func (self *torsten) Create(path string, opts CreateOptions) (io.WriteCloser, er
 		writer = newMimeWriter(writer, info)
 	}
 
-	return self.runCreateHook(info, writer)
+	if writer, err = self.runCreateHook(info, writer); err != nil {
+		self.log.WithError(err).WithFields(logrus.Fields{
+			"info": info,
+		}).Debug("Create hook return an error")
+	}
+	return writer, nil
+
 }
 func (self *torsten) Copy(from, to string) error {
-	return nil
+	return errors.New("Not implemented")
 }
 func (self *torsten) Move(from, to string) error {
-	return nil
+	return errors.New("Not implemented")
 }
 func (self *torsten) MkDir(path string) error {
-	return nil
-}
-
-func (self *torsten) notFoundOrLog(err error) error {
-	if err == ErrNotFound {
-		return err
-	}
-	self.log.WithError(err).Errorf("Unexcepted error %v", err)
-	return err
+	return errors.New("Not implemented")
 }
 
 func (self *torsten) Remove(path string, o RemoveOptions) error {

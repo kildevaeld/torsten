@@ -19,6 +19,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/kildevaeld/torsten"
 	"github.com/kildevaeld/torsten/http"
 	"github.com/spf13/cobra"
@@ -39,7 +40,7 @@ func init() {
 	RootCmd.AddCommand(httpCmd)
 
 	httpCmd.Flags().StringP("host", "H", ":3000", "address")
-	httpCmd.Flags().BoolP("debug", "d", false, "Show verbose output")
+	httpCmd.Flags().Bool("log", false, "Log http")
 	httpCmd.Flags().Int64("max-request-body", 20*1024*1024, "Maximum request body in bytes")
 	httpCmd.Flags().Int64("expires", 60*60*24*7, "Caching in seconds")
 	httpCmd.Flags().String("key", "", "key")
@@ -60,6 +61,7 @@ func init() {
 	viper.BindPFlag("Filestore.Options", flags.Lookup("filestore-options"))
 	viper.BindPFlag("Metastore.Driver", flags.Lookup("metastore"))
 	viper.BindPFlag("Metastore.Options", flags.Lookup("metastore-options"))
+	viper.BindPFlag("HttpLog", flags.Lookup("log"))
 }
 
 func runHttp() error {
@@ -77,9 +79,15 @@ func runHttp() error {
 	serv = http.NewWithLogger(tors, logger.WithField("prefix", "http"), http.Options{
 		Expires:        opts.Expires,
 		MaxRequestBody: opts.MaxRequestBody,
-		Log:            opts.Debug,
+		Log:            opts.HttpLog,
 		JWTKey:         []byte(opts.Key),
 	})
+
+	logger.WithFields(logrus.Fields{
+		"filestore": opts.Filestore.Driver,
+		"metastore": opts.Metastore.Driver,
+		"host":      opts.Host,
+	}).Debug("Config")
 
 	signal_chan := make(chan os.Signal, 1)
 	signal.Notify(signal_chan,

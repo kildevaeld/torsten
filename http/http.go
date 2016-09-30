@@ -16,7 +16,7 @@ import (
 	"github.com/kildevaeld/torsten/thumbnail"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/engine"
-	"github.com/labstack/echo/engine/fasthttp"
+	"github.com/labstack/echo/engine/standard"
 	"github.com/labstack/echo/middleware"
 )
 
@@ -76,6 +76,11 @@ func (self *HttpServer) idsFromJWT(ctx echo.Context) (*id_pair, error) {
 		u   string
 		s   string
 	)
+
+	if ctx.Get("user") == nil {
+		return nil, echo.NewHTTPError(http.StatusUnauthorized)
+	}
+
 	user := ctx.Get("user").(*jwt.Token)
 	claims := user.Claims.(jwt.MapClaims)
 	if u, ok = claims["uid"].(string); !ok {
@@ -108,11 +113,13 @@ func (self *HttpServer) idsFromJWT(ctx echo.Context) (*id_pair, error) {
 
 func (self *HttpServer) Listen(addr string) error {
 
-	serr := fasthttp.New(addr)
+	/*serr := fasthttp.New(addr)
 
 	if self.o.MaxRequestBody > 0 {
 		serr.MaxRequestBodySize = 100 * 1024 * 1024
-	}
+	}*/
+
+	serr := standard.New(addr)
 
 	return self.listen(serr, addr)
 }
@@ -122,6 +129,7 @@ func (self *HttpServer) listen(s engine.Server, addr string) error {
 	self.thumb.Start()
 
 	if self.o.Log {
+		self.log.Debug("Using http log")
 		self.echo.Use(NewWithNameAndLogger("torsten", self.log.WithField("prefix", "http")))
 	}
 
@@ -140,7 +148,8 @@ func (self *HttpServer) listen(s engine.Server, addr string) error {
 	})
 
 	if self.o.JWTKey != nil && len(self.o.JWTKey) > 0 {
-		self.echo.Use(middleware.JWTWithConfig(middleware.JWTConfig{
+		self.log.Debugf("Setting JWT key to: %s", self.o.JWTKey)
+		self.echo.Use(JWTWithConfig(JWTConfig{
 			SigningKey:  self.o.JWTKey,
 			TokenLookup: "header:Authorization",
 		}))

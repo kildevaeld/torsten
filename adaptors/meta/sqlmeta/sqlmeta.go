@@ -233,6 +233,8 @@ func (self *sqlmeta) GetById(id uuid.UUID, info *torsten.FileInfo) error {
 		return err
 	}
 
+	self.log.WithField("id", id.String()).Debug("Get by id")
+
 	return file.ToInfoFile(info)
 
 }
@@ -248,13 +250,6 @@ func (self *sqlmeta) Get(path string, o torsten.GetOptions) (*torsten.FileInfo, 
 		builder = builder.Where(sq.Expr("CONCAT(fn.path, file_info.name) = ?", path))
 	}
 
-	/*builder = builder.Where(sq.Or{
-		sq.And{
-			sq.Or{sq.Eq{FileTable + ".uid": o.Uid}, sq.Eq{"file_info.gid": o.Gid}},
-			sq.Expr(fmt.Sprintf("(%s.perms & %d) <> 0", FileTable, OWNER_READ|GROUP_READ)),
-		},
-		sq.Expr(fmt.Sprintf("(%s.perms & %d) <> 0", FileTable, OTHER_READ)),
-	})*/
 	builder = self.buildReadPerms(FileTable, builder, o)
 
 	sqli, args, err := builder.ToSql()
@@ -286,6 +281,7 @@ func (self *sqlmeta) Get(path string, o torsten.GetOptions) (*torsten.FileInfo, 
 		return node.ToInfo()
 	}
 	file.Path = normalizeDir(filepath.Dir(path))
+	self.log.WithField("path", path).Debugf("Get file")
 	return file.ToInfo()
 }
 
@@ -461,7 +457,7 @@ func (self *sqlmeta) Remove(path string, options torsten.RemoveOptions) error {
 		if _, err := self.db.Exec(sqli, args...); err != nil {
 			return notFoundOr(err)
 		}
-
+		self.log.WithField("path", path).Debugln("Remove file")
 	}
 
 	return nil
@@ -529,7 +525,7 @@ func (self *sqlmeta) Count(path string, options torsten.GetOptions) (int64, erro
 	if err = self.db.Get(&count, sqli, args...); err != nil {
 		return -1, err
 	}
-
+	self.log.WithField("path", path).Debugf("Count %d", count)
 	return count, nil
 
 }

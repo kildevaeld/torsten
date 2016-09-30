@@ -54,10 +54,12 @@ func init() {
 	// will be global for your application.
 
 	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.torsten.yaml)")
+	RootCmd.PersistentFlags().BoolP("debug", "d", false, "Show verbose output")
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	RootCmd.Flags().BoolP("verbose", "v", false, "Help message for toggle")
 	viper.BindPFlag("vebose", RootCmd.Flags().Lookup("verbose"))
+	viper.BindPFlag("Debug", RootCmd.PersistentFlags().Lookup("debug"))
 }
 
 // initConfig reads in config file and ENV variables if set.
