@@ -24,17 +24,24 @@ import (
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 )
 
+var VERSION string
+
 var cfgFile string
 var logger *logrus.Logger
+var versionFlag bool
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
 	Use:   "torsten",
 	Short: "A brief description of your application",
 	Long:  ``,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	//	Run: func(cmd *cobra.Command, args []string) { },
+	Run: func(cmd *cobra.Command, args []string) {
+		if versionFlag {
+			fmt.Printf("Torsten v%s\n", VERSION)
+			os.Exit(0)
+		}
+		cmd.Help()
+	},
 }
 
 // Execute adds all child commands to the root command sets flags appropriately.
@@ -57,8 +64,8 @@ func init() {
 	RootCmd.PersistentFlags().BoolP("debug", "d", false, "Show verbose output")
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	RootCmd.Flags().BoolP("verbose", "v", false, "Help message for toggle")
-	viper.BindPFlag("vebose", RootCmd.Flags().Lookup("verbose"))
+	RootCmd.Flags().BoolVarP(&versionFlag, "version", "v", false, "Help message for toggle")
+
 	viper.BindPFlag("Debug", RootCmd.PersistentFlags().Lookup("debug"))
 }
 
