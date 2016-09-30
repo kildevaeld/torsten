@@ -1,6 +1,8 @@
 FROM gliderlabs/alpine:latest
 
-COPY torsten /usr/bin/torsten
+RUN apk add --no-cache ca-certificates
+
+COPY torsten /usr/bin/
 COPY entrypoint.sh /entrypoint.sh
 
 RUN chmod a+x /usr/bin/torsten /entrypoint.sh

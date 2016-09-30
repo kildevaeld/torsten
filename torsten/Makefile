@@ -1,6 +1,6 @@
 
 BINARY="torsten"
-VERSION?="0.0.1"
+VERSION?="0.0.2"
 OUTDIR?=${PWD}
 
 build:

@@ -90,7 +90,7 @@ func (self *HttpServer) handleFile(ctx echo.Context, options torsten.GetOptions,
 }
 
 func (self *HttpServer) handleFiles(ctx echo.Context) error {
-	etag := fmt.Sprintf(`"%x"`, []byte(ctx.Request().URI()))
+	//etag := fmt.Sprintf(`"%x"`, []byte(ctx.Request().URI()))
 	/*if match := ctx.Request().Header().Get("If-None-Match"); match != "" {
 		if strings.Contains(match, etag) {
 			ctx.Response().WriteHeader(http.StatusNotModified)
@@ -170,9 +170,9 @@ func (self *HttpServer) handleFiles(ctx echo.Context) error {
 		if len(files) == 0 {
 			files = []torsten.FileInfo{}
 		}
-		header := ctx.Response().Header()
-		header.Set("Etag", etag)
-		header.Set("Cache-Control", fmt.Sprintf("max-age=%d", 60))
+		//header := ctx.Response().Header()
+		//header.Set("Etag", etag)
+		//header.Set("Cache-Control", fmt.Sprintf("max-age=%d", 60))
 
 		return ctx.JSON(http.StatusOK, dict.Map{
 			"message": "ok",
