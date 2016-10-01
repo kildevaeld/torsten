@@ -219,6 +219,10 @@ func (self *HttpServer) genLinks(ctx echo.Context, o torsten.ListOptions, path s
 		RawQuery: uri.QueryString(),
 	}
 
+	if ctx.Request().Header().Contains("X-Forwarded-Proto") {
+		u.Scheme = ctx.Request().Header().Get("X-Forwarded-Proto")
+	}
+
 	var out []string
 	for k, v := range links {
 		q := u.Query()
