@@ -17,8 +17,10 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
+	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
@@ -80,6 +82,15 @@ func initConfig() {
 
 	viper.AutomaticEnv()
 	viper.SetEnvPrefix("TORSTEN")
+
+	home, err := homedir.Dir()
+	if err != nil {
+		home = "/usr/local/share/torsten"
+	} else {
+		home = filepath.Join(home, ".torsten")
+	}
+
+	viper.Set("Home", home)
 
 	logger = logrus.New()
 	logger.Formatter = new(prefixed.TextFormatter)

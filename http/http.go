@@ -22,13 +22,14 @@ import (
 
 var octetStream = "application/octet-stream"
 var FileField = "file"
-var isTrueRegex = regexp.MustCompile("true|yes|1|ja|oui|si")
+var isTrueRegex = regexp.MustCompile("true|yes|1|ja|oui|si|da")
 
 type Options struct {
 	MaxRequestBody int `max_request_body`
 	Expires        int
 	Log            bool
 	JWTKey         []byte
+	CachePath      string
 }
 
 type HttpServer struct {
@@ -179,7 +180,7 @@ func New(t torsten.Torsten, o Options) *HttpServer {
 func NewWithLogger(t torsten.Torsten, l logrus.FieldLogger, o Options) *HttpServer {
 
 	store, _ := filesystem.New(filesystem.Options{
-		Path: "./cache_path",
+		Path: o.CachePath,
 	})
 
 	thumb := thumbnail.NewThumbnailer(t, store)

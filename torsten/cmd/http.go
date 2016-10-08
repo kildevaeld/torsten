@@ -46,6 +46,7 @@ func init() {
 	httpCmd.Flags().String("key", "", "key")
 
 	flags := httpCmd.Flags()
+	flags.String("cache-path", "", "")
 	flags.String("filestore", "filesystem", "Filestore to use")
 	flags.String("filestore-options", "./torsten_path", "Options")
 	flags.String("metastore", "sqlite3", "")
@@ -63,6 +64,7 @@ func init() {
 	viper.BindPFlag("Metastore.Driver", flags.Lookup("metastore"))
 	viper.BindPFlag("Metastore.Options", flags.Lookup("metastore-options"))
 	viper.BindPFlag("HttpLog", flags.Lookup("log"))
+	viper.BindPFlag("CachePath", flags.Lookup("cache-path"))
 
 }
 
@@ -83,12 +85,14 @@ func runHttp() error {
 		MaxRequestBody: opts.MaxRequestBody,
 		Log:            opts.HttpLog,
 		JWTKey:         []byte(opts.Key),
+		CachePath:      opts.CachePath,
 	})
 
 	logger.WithFields(logrus.Fields{
 		"filestore": opts.Filestore.Driver,
 		"metastore": opts.Metastore.Driver,
 		"host":      opts.Host,
+		"cache":     opts.CachePath,
 	}).Debug("Config")
 
 	signal_chan := make(chan os.Signal, 1)

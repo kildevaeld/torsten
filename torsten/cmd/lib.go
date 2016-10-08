@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"os"
@@ -22,8 +23,9 @@ type Options struct {
 	Metastore      sqlmeta.Options   `json:"metastore"`
 	Host           string            `json:"host"`
 	Key            string            `json:"key"`
-	Expires        int               `json:"expires" mapstructure:"Expires"`
-	MaxRequestBody int               `json:"max_request_body`
+	CachePath      string
+	Expires        int `json:"expires" mapstructure:"Expires"`
+	MaxRequestBody int `json:"max_request_body`
 	Debug          bool
 	HttpLog        bool
 }
@@ -80,7 +82,12 @@ func getTorsten() (torsten.Torsten, Options, error) {
 	options.Metastore.Driver = viper.GetString("Metastore.Driver")
 	options.Metastore.Options = viper.GetString("Metastore.Options")
 
-	fmt.Printf("%#v\n", options)
+	cache := filepath.Join(viper.GetString("Home"), "cache/thumbnail")
+	if viper.GetString("CachePath") != "" {
+
+		cache = viper.GetString("CachePath")
+	}
+	options.CachePath = cache
 
 	if options.Filestore.Driver == "" {
 		options.Filestore.Driver = "filesystem"
