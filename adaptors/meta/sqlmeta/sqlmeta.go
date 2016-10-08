@@ -12,6 +12,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/jmoiron/sqlx"
 	"github.com/kildevaeld/torsten"
+	sqlite3 "github.com/mattn/go-sqlite3"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -71,7 +72,6 @@ func (self *sqlmeta) init() error {
 		}
 
 	}
-
 	return nil
 }
 
@@ -536,6 +536,19 @@ func New(options Options) (torsten.MetaAdaptor, error) {
 }
 
 func NewWithLogger(options Options, logger logrus.FieldLogger) (torsten.MetaAdaptor, error) {
+
+	if options.Driver == "sqlite3" {
+		sql.Register("sqlite3_go_func", &sqlite3.SQLiteDriver{
+			ConnectHook: func(conn *sqlite3.SQLiteConn) error {
+				fmt.Printf("REGISTER")
+				return conn.RegisterFunc("uuid_to_bin", func(s string) []byte {
+					b, _ := uuid.FromString(s)
+					return b.Bytes()
+				}, true)
+			},
+		})
+	}
+
 	db, err := sqlx.Open(options.Driver, options.Options)
 
 	if err != nil {

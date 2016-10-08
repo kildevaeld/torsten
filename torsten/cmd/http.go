@@ -41,8 +41,8 @@ func init() {
 
 	httpCmd.Flags().StringP("host", "H", ":3000", "address")
 	httpCmd.Flags().Bool("log", false, "Log http")
-	httpCmd.Flags().Int64("max-request-body", 20*1024*1024, "Maximum request body in bytes")
-	httpCmd.Flags().Int64("expires", 60*60*24*7, "Caching in seconds")
+	httpCmd.Flags().Int("max-request-body", 20*1024*1024, "Maximum request body in bytes")
+	httpCmd.Flags().Int("expires", 60*60*24*7, "Caching in seconds")
 	httpCmd.Flags().String("key", "", "key")
 
 	flags := httpCmd.Flags()
@@ -52,8 +52,9 @@ func init() {
 	flags.String("metastore-options", "./torsten_database.sqlite", "")
 
 	viper.BindPFlag("Host", httpCmd.Flags().Lookup("host"))
-	viper.BindPFlag("Debug", httpCmd.Flags().Lookup("debug"))
-	viper.BindPFlag("Expires", httpCmd.Flags().Lookup("expires"))
+
+	viper.BindPFlag("Expires", flags.Lookup("expires"))
+
 	viper.BindPFlag("MaxRequestBody", httpCmd.Flags().Lookup("max-request-body"))
 	viper.BindPFlag("Key", httpCmd.Flags().Lookup("key"))
 
@@ -62,6 +63,7 @@ func init() {
 	viper.BindPFlag("Metastore.Driver", flags.Lookup("metastore"))
 	viper.BindPFlag("Metastore.Options", flags.Lookup("metastore-options"))
 	viper.BindPFlag("HttpLog", flags.Lookup("log"))
+
 }
 
 func runHttp() error {

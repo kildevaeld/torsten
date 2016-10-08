@@ -22,7 +22,7 @@ type Options struct {
 	Metastore      sqlmeta.Options   `json:"metastore"`
 	Host           string            `json:"host"`
 	Key            string            `json:"key"`
-	Expires        int               `json:"expires"`
+	Expires        int               `json:"expires" mapstructure:"Expires"`
 	MaxRequestBody int               `json:"max_request_body`
 	Debug          bool
 	HttpLog        bool
@@ -69,9 +69,18 @@ func getTorsten() (torsten.Torsten, Options, error) {
 	//var fsOptions filestore.Options
 
 	var options Options
-	if err = viper.Unmarshal(&options); err != nil {
-		return nil, options, err
-	}
+	options.Expires = viper.GetInt("Expires")
+	options.Debug = viper.GetBool("Debug")
+	options.Host = viper.GetString("Host")
+	options.HttpLog = viper.GetBool("HttpLog")
+	options.MaxRequestBody = viper.GetInt("MaxRequestBody")
+	options.Key = viper.GetString("Key")
+	options.Filestore.Driver = viper.GetString("Filestore.Driver")
+	options.Filestore.Options = viper.Get("Filestore.Options")
+	options.Metastore.Driver = viper.GetString("Metastore.Driver")
+	options.Metastore.Options = viper.GetString("Metastore.Options")
+
+	fmt.Printf("%#v\n", options)
 
 	if options.Filestore.Driver == "" {
 		options.Filestore.Driver = "filesystem"
