@@ -11,4 +11,4 @@ build:
 
 
 install:
-	install -m 0755 ${BINARY} /usr/bin/${BINARY}
+	install -m 0755 ${BINARY} /usr/local/bin/${BINARY}
