@@ -1,6 +1,6 @@
 FROM gliderlabs/alpine:latest
 
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates mailcap libmagic
 
 COPY torsten /usr/bin/
 COPY entrypoint.sh /entrypoint.sh

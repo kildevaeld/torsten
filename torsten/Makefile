@@ -1,13 +1,15 @@
 
 BINARY=torsten
-VERSION?="0.0.5"
+VERSION?="0.0.6"
 OUTDIR?=${PWD}
+FLAGS= -tags libmagic
 
 build:
-	@echo "Running go get"
+	@echo "Downloading dependencies ..."
 	@go get -x ./...
-	@echo "Running go build"
-	@go build -ldflags "-s -X github.com/kildevaeld/torsten/torsten/cmd.VERSION=${VERSION}" -o ${OUTDIR}/${BINARY}
+	@go get -x github.com/rakyll/magicmime
+	@echo "Running go build ..."
+	@go build ${FLAGS} -ldflags "-s -X github.com/kildevaeld/torsten/torsten/cmd.VERSION=${VERSION}" -o ${OUTDIR}/${BINARY}
 
 
 install:
