@@ -1,6 +1,6 @@
 
 BINARY=torsten
-VERSION?="0.0.6"
+VERSION?="0.0.7"
 OUTDIR?=${PWD}
 FLAGS= -tags libmagic
 

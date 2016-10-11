@@ -272,17 +272,12 @@ type mime_writer struct {
 	buf    *bytes.Buffer
 	writer io.WriteCloser
 	info   *FileInfo
+	tried  bool
 }
 
-func (self *mime_writer) getMimeType() string {
-	if self.buf == nil {
-		if self.info.Mime != "" {
-			return self.info.Mime
-		}
-		return octetStream
-	}
+func (self *mime_writer) getMimeType(bs []byte) string {
 
-	m, e := mime.DetectContentType(self.buf.Bytes())
+	m, e := mime.DetectContentType(bs)
 
 	if e != nil {
 		return octetStream
@@ -292,32 +287,21 @@ func (self *mime_writer) getMimeType() string {
 	if m == "" {
 		m = octetStream
 	}
+
 	return m
 }
 
 func (self *mime_writer) Write(bs []byte) (int, error) {
-	var i int
-	var e error
-	if self.buf != nil {
-		i, e = self.buf.Write(bs)
-		if self.buf.Len() >= 16 {
-			self.info.Mime = self.getMimeType()
-			i, e = self.writer.Write(self.buf.Bytes())
-			self.buf.Reset()
-		}
-	} else {
-		i, e = self.writer.Write(bs)
+
+	if !self.tried && (self.info.Mime == octetStream || self.info.Mime == "") {
+		self.info.Mime = self.getMimeType(bs)
+		self.tried = true
 	}
 
-	return i, e
+	return self.writer.Write(bs)
 }
 
 func (self *mime_writer) Close() error {
-	if self.buf.Len() > 0 {
-		self.writer.Write(self.buf.Bytes())
-		self.info.Mime = self.getMimeType()
-		self.buf.Reset()
-	}
 
 	return self.writer.Close()
 }
