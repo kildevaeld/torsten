@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-
+	"time"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/Sirupsen/logrus"
 	"github.com/jmoiron/sqlx"
@@ -115,10 +115,12 @@ func (self *sqlmeta) insertIn(path string, info *torsten.FileInfo, tx *sqlx.Tx) 
 		return err
 	}
 
+	now := time.Now()
+
 	sqli, args, err = sq.Insert(FileTable).
-		Columns("name", "size", "mime_type", "uid", "gid", "sha1", "id", "meta", "node_id", "hidden", "perms").
+		Columns("name", "size", "mime_type", "uid", "gid", "sha1", "id", "meta", "node_id", "hidden", "perms", "ctime", "mtime").
 		Values(info.Name, info.Size, info.Mime, NewInfoID(info.Uid), NewInfoID(info.Gid), info.Sha1, NewInfoID(info.Id),
-			info.Meta, parent, info.Hidden, info.Mode).ToSql()
+			info.Meta, parent, info.Hidden, info.Mode, now, now).ToSql()
 
 	if err != nil {
 		tx.Rollback()

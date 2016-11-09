@@ -129,6 +129,8 @@ func (self *HttpServer) listen(s engine.Server, addr string) error {
 
 	self.thumb.Start()
 
+	self.echo.SetDebug(true)
+
 	if self.o.Log {
 		self.log.Debug("Using http log")
 		self.echo.Use(NewWithNameAndLogger("torsten", self.log.WithField("prefix", "http")))
