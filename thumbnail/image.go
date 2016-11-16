@@ -1,7 +1,6 @@
 package thumbnail
 
 import (
-	"bytes"
 	"fmt"
 	"image"
 	"image/gif"
@@ -9,13 +8,48 @@ import (
 	"image/png"
 	"io"
 	"io/ioutil"
+	"os"
 
 	"github.com/kildevaeld/filestore"
 	"github.com/kildevaeld/torsten"
 	"github.com/kildevaeld/torsten/workqueue"
 	"github.com/nfnt/resize"
 	uuid "github.com/satori/go.uuid"
+	"github.com/tevino/abool"
 )
+
+type wrap struct {
+	file   *os.File
+	closed *abool.AtomicBool
+}
+
+func (self *wrap) Read(bs []byte) (int, error) {
+	if self.closed.IsSet() {
+		return 0, io.EOF
+	}
+	return self.file.Read(bs)
+
+}
+
+func (self *wrap) Close() error {
+	if self.closed.IsSet() {
+		return nil
+	}
+
+	self.closed.Set()
+
+	err := cleanFile(self.file)
+	self.file = nil
+
+	return err
+
+}
+
+func cleanFile(file *os.File) error {
+	err := file.Close()
+	os.Remove(file.Name())
+	return err
+}
 
 func imageGenerator(mime string) func(r io.Reader, size Size) (io.ReadCloser, torsten.CreateOptions, error) {
 	return func(r io.Reader, size Size) (io.ReadCloser, torsten.CreateOptions, error) {
@@ -40,24 +74,40 @@ func imageGenerator(mime string) func(r io.Reader, size Size) (io.ReadCloser, to
 		}
 		img = resize.Thumbnail(size.Width, size.Height, img, resize.Lanczos3)
 
-		buf := bytes.NewBuffer(nil)
+		file, err := ioutil.TempFile("", "torsten-thumbnail")
+		if err != nil {
+			return nil, o, nil
+		}
 
 		switch mime {
 		case "png":
-			err = png.Encode(buf, img)
+			err = png.Encode(file, img)
 		case "jpeg", "jpg":
-			err = jpeg.Encode(buf, img, nil)
+			err = jpeg.Encode(file, img, nil)
 		case "gif":
-			err = gif.Encode(buf, img, nil)
+			err = gif.Encode(file, img, nil)
 		}
 		if err != nil {
-			buf.Reset()
+			cleanFile(file)
 			return nil, o, err
 		}
 
-		reader := ioutil.NopCloser(bytes.NewReader(buf.Bytes()))
-		o.Size = int64(buf.Len())
-		o.Mime = "image/" + mime
+		file.Sync()
+
+		if stat, err := file.Stat(); err != nil {
+			cleanFile(file)
+			return nil, o, nil
+		} else {
+			o.Size = stat.Size()
+			o.Mime = "image/" + mime
+		}
+
+		file.Seek(0, 0)
+
+		reader := &wrap{
+			file:   file,
+			closed: abool.New(),
+		}
 
 		return reader, o, nil
 	}
@@ -106,6 +156,11 @@ func worker(t torsten.Torsten, cache filestore.Store) func(*workqueue.WorkReques
 		}
 
 		if err = cache.Set(cacheName, reader, nil); err == nil {
+			if file, ok := reader.(*os.File); ok {
+				return file, nil
+			} else if file, ok := reader.(*wrap); ok {
+				return file, nil
+			}
 			reader.Close()
 			reader, err = cache.Get(cacheName)
 		}
