@@ -25,6 +25,7 @@ func init() {
 
 	Register("image/png", imageGenerator("png"))
 	Register("image/jpeg", imageGenerator("jpeg"))
+	Register("image/jpg", imageGenerator("jpeg"))
 	Register("image/gif", imageGenerator("gif"))
 
 }
