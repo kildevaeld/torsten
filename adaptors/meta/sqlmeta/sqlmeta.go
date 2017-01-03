@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
 	sq "github.com/Masterminds/squirrel"
 	"github.com/Sirupsen/logrus"
 	"github.com/jmoiron/sqlx"
@@ -60,7 +61,7 @@ func (self *sqlmeta) init() error {
 		self.db.MustExec(st)
 	}
 
-	if self.db.DriverName() == "mysql" {
+	/*if self.db.DriverName() == "mysql" {
 		split = strings.Split(string(MustAsset("schemas/mysql_funtions.sql")), "|\n")
 		for _, str := range split {
 
@@ -71,7 +72,7 @@ func (self *sqlmeta) init() error {
 			self.db.MustExec(str)
 		}
 
-	}
+	}*/
 	return nil
 }
 
