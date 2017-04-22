@@ -15,6 +15,7 @@ import (
 	"github.com/kildevaeld/torsten"
 	sqlite3 "github.com/mattn/go-sqlite3"
 	uuid "github.com/satori/go.uuid"
+	"golang.org/x/net/context"
 )
 
 var (
@@ -50,7 +51,17 @@ func (self *sqlmeta) init() error {
 	default:
 		return errors.New("Driver not suppported: " + self.db.DriverName())
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+
+	defer cancel()
+
 	self.log.Debugf("initialize %s database", self.db.DriverName())
+
+	if err := self.db.PingContext(ctx); err != nil {
+		return err
+	}
+
 	// The mysql driver does not support multiple statements
 	split := strings.Split(string(MustAsset(asset)), ";\n")
 	for _, st := range split {
