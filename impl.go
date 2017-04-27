@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/gosimple/slug"
 	"github.com/kildevaeld/filestore"
 	"github.com/kildevaeld/torsten/rwlock"
 	uuid "github.com/satori/go.uuid"
@@ -34,6 +35,9 @@ type torsten struct {
 
 func (self *torsten) Create(path string, opts CreateOptions) (io.WriteCloser, error) {
 	var err error
+
+	path = slug.Make(path)
+
 	if _, err = self.Stat(path, GetOptions{[]uuid.UUID{opts.Gid}, opts.Uid}); err == nil && opts.Overwrite == false {
 		return nil, ErrAlreadyExists
 	} else if err == nil {
@@ -290,6 +294,10 @@ func NewWithLogger(f filestore.Store, m MetaAdaptor, logger logrus.FieldLogger) 
 		hooks:  make(map[Hook][]HookFunc),
 		states: l,
 		log:    logger,
+	}
+
+	slug.CustomRuneSub = map[rune]string{
+		'"': "",
 	}
 
 	return t
