@@ -33,10 +33,23 @@ type torsten struct {
 	log         logrus.FieldLogger
 }
 
+func (self *torsten) validate_path(path string) (string, error) {
+	path = strings.Trim(path, ". ")
+
+	if path == "/" || path == "" {
+		return "", errors.New("invalid path")
+	}
+
+	return path, nil
+
+}
+
 func (self *torsten) Create(path string, opts CreateOptions) (io.WriteCloser, error) {
 	var err error
 
-	path = slug.Make(path)
+	if path, err = self.validate_path(path); err != nil {
+		return nil, err
+	}
 
 	if _, err = self.Stat(path, GetOptions{[]uuid.UUID{opts.Gid}, opts.Uid}); err == nil && opts.Overwrite == false {
 		return nil, ErrAlreadyExists
