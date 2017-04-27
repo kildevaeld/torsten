@@ -40,6 +40,8 @@ func (self *torsten) validate_path(path string) (string, error) {
 		return "", errors.New("invalid path")
 	}
 
+	path = slug.Make(path)
+
 	return path, nil
 
 }
