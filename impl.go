@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/gosimple/slug"
+	"github.com/kildevaeld/slug"
 	"github.com/kildevaeld/filestore"
 	"github.com/kildevaeld/torsten/rwlock"
 	uuid "github.com/satori/go.uuid"
@@ -41,6 +41,10 @@ func (self *torsten) validate_path(path string) (string, error) {
 	}
 
 	path = slug.Make(path)
+
+	if path[0] != '/' {
+		path = "/" + path
+	}
 
 	return path, nil
 
@@ -314,6 +318,7 @@ func NewWithLogger(f filestore.Store, m MetaAdaptor, logger logrus.FieldLogger) 
 	slug.CustomRuneSub = map[rune]string{
 		'"': "",
 	}
+	slug.RegexpNonAuthorizedChars = regexp.MustCompile("[^a-z0-9-_/]")
 
 	return t
 }
