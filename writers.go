@@ -180,6 +180,11 @@ func (self *writer) Close() error {
 
 }
 
+func (self *writer) Path() string {
+	return self.path
+}
+
+
 func newWriter(t *torsten, path string, info *FileInfo, done func(error) error) *writer {
 
 	buf := newWriteReader()
@@ -199,7 +204,7 @@ type size_writer struct {
 	tmpFile *os.File
 	//hash    *HashWriter
 	//torsten *torsten
-	writer  io.WriteCloser
+	writer  WriteCloser
 	err     error
 	size    int64
 	is_init bool
@@ -257,7 +262,11 @@ func (self *size_writer) Close() error {
 
 }
 
-func newSizeWriter(writer io.WriteCloser, info *FileInfo) *size_writer {
+func (self *size_writer) Path() string {
+	return self.writer.Path()
+}
+
+func newSizeWriter(writer WriteCloser, info *FileInfo) *size_writer {
 
 	return &size_writer{
 		writer: writer,
@@ -270,7 +279,7 @@ var octetStream = "application/octet-stream"
 
 type mime_writer struct {
 	buf    *bytes.Buffer
-	writer io.WriteCloser
+	writer WriteCloser
 	info   *FileInfo
 	tried  bool
 }
@@ -306,7 +315,12 @@ func (self *mime_writer) Close() error {
 	return self.writer.Close()
 }
 
-func newMimeWriter(writer io.WriteCloser, info *FileInfo) io.WriteCloser {
+func (self *mime_writer) Path() string {
+	return self.writer.Path()
+}
+
+
+func newMimeWriter(writer WriteCloser, info *FileInfo) WriteCloser {
 	return &mime_writer{
 		buf:    bytes.NewBuffer(nil),
 		writer: writer,

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-
+	"regexp"
 	"github.com/Sirupsen/logrus"
 	"github.com/kildevaeld/slug"
 	"github.com/kildevaeld/filestore"
@@ -50,7 +50,7 @@ func (self *torsten) validate_path(path string) (string, error) {
 
 }
 
-func (self *torsten) Create(path string, opts CreateOptions) (io.WriteCloser, error) {
+func (self *torsten) Create(path string, opts CreateOptions) (WriteCloser, error) {
 	var err error
 
 	if path, err = self.validate_path(path); err != nil {
@@ -94,7 +94,7 @@ func (self *torsten) Create(path string, opts CreateOptions) (io.WriteCloser, er
 		return nil, err
 	}
 
-	var writer io.WriteCloser = newWriter(self, path, info, func(err error) error {
+	var writer WriteCloser = newWriter(self, path, info, func(err error) error {
 
 		if err != nil {
 			self.log.WithError(err).WithFields(logrus.Fields{
@@ -272,7 +272,7 @@ func (self *torsten) RegisterCreateHook(fn CreateHookFunc) {
 	self.createHooks = append(self.createHooks, fn)
 }
 
-func (self *torsten) runCreateHook(info *FileInfo, writer io.WriteCloser) (io.WriteCloser, error) {
+func (self *torsten) runCreateHook(info *FileInfo, writer WriteCloser) (WriteCloser, error) {
 	self.lock.RLock()
 	defer self.lock.RUnlock()
 	var err error
@@ -300,6 +300,10 @@ func (self *torsten) runHook(hook Hook, path string, info *FileInfo) error {
 
 }
 
+func (self *torsten) EscapePath(path string) (string,error) {
+	return self.validate_path(path)
+}
+
 func New(f filestore.Store, m MetaAdaptor) Torsten {
 	return NewWithLogger(f, m, logrus.New())
 }
@@ -318,7 +322,7 @@ func NewWithLogger(f filestore.Store, m MetaAdaptor, logger logrus.FieldLogger) 
 	slug.CustomRuneSub = map[rune]string{
 		'"': "",
 	}
-	slug.RegexpNonAuthorizedChars = regexp.MustCompile("[^a-z0-9-_/]")
+	slug.RegexpNonAuthorizedChars = regexp.MustCompile("[^a-z0-9-_./]")
 
 	return t
 }

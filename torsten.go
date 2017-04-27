@@ -47,7 +47,7 @@ var ErrAlreadyExists = errors.New("Already Exists")
 var ErrForbidden = errors.New("Forbidden")
 
 type HookFunc func(Hook, string, *FileInfo) error
-type CreateHookFunc func(*FileInfo, io.WriteCloser) (io.WriteCloser, error)
+type CreateHookFunc func(*FileInfo, WriteCloser) (WriteCloser, error)
 type FileStatus int
 
 const (
@@ -131,7 +131,7 @@ type MetaAdaptor interface {
 }
 
 type Torsten interface {
-	Create(path string, opts CreateOptions) (io.WriteCloser, error)
+	Create(path string, opts CreateOptions) (WriteCloser, error)
 	Copy(from, to string) error
 	Move(from, to string) error
 	MkDir(path string) error
@@ -146,4 +146,11 @@ type Torsten interface {
 	Count(path string, options GetOptions) (int64, error)
 	RegisterHook(hook Hook, fn HookFunc)
 	RegisterCreateHook(fn CreateHookFunc)
+	EscapePath(path string) (string,error)
+}
+
+type WriteCloser interface {
+	Path() string
+	//FileInfo() FileInfo
+	io.WriteCloser
 }
